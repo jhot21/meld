@@ -1,0 +1,223 @@
+package me.jhot.meld.ui.globalSettings
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+
+private const val ADB_COMMAND =
+    "adb shell pm grant me.jhot.meld android.permission.WRITE_SECURE_SETTINGS"
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GlobalSettingsScreen(navController: NavController) {
+    val viewModel: GlobalSettingsViewModel = viewModel(factory = GlobalSettingsViewModel.Factory)
+
+    val writeSettingsGranted by viewModel.writeSettingsGranted.collectAsState()
+    val notificationPolicyGranted by viewModel.notificationPolicyGranted.collectAsState()
+    val secureSettingsGranted by viewModel.secureSettingsGranted.collectAsState()
+
+    val context = LocalContext.current
+
+    // Refresh whenever this screen resumes — covers both initial load and return from system settings
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    TextButton(onClick = { navController.popBackStack() }) {
+                        Text("Back")
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Permissions", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Meld requires these permissions to apply settings to your device.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            // WRITE_SETTINGS
+            PermissionCard(
+                title = "Modify system settings",
+                description = "Required for volumes, brightness, ringer mode, screen rotation, and display timeout.",
+                granted = writeSettingsGranted,
+            ) {
+                Button(onClick = {
+                    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    context.startActivity(intent)
+                }) {
+                    Text("Grant permission")
+                }
+            }
+
+            // ACCESS_NOTIFICATION_POLICY
+            PermissionCard(
+                title = "Do Not Disturb access",
+                description = "Required for the Do Not Disturb setting.",
+                granted = notificationPolicyGranted,
+            ) {
+                Button(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                }) {
+                    Text("Grant permission")
+                }
+            }
+
+            // WRITE_SECURE_SETTINGS
+            PermissionCard(
+                title = "Write secure settings",
+                description = "Required for dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, location mode, and Bluetooth. Must be granted via ADB.",
+                granted = secureSettingsGranted,
+            ) {
+                Column {
+                    Text(
+                        "Run this command in a terminal with your phone connected via USB:",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        ADB_COMMAND,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("ADB command", ADB_COMMAND))
+                    }) {
+                        Text("Copy command")
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Import / Export placeholder
+            Text("Import / Export", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Coming in a future update.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            // ntfy.sh placeholder
+            Text("ntfy.sh Integration", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Coming in a future update.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun PermissionCard(
+    title: String,
+    description: String,
+    granted: Boolean,
+    action: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (granted)
+                MaterialTheme.colorScheme.surfaceVariant
+            else
+                MaterialTheme.colorScheme.surface,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (granted) Icons.Default.Check else Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(title, style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!granted) {
+                Spacer(Modifier.height(12.dp))
+                action()
+            }
+        }
+    }
+}

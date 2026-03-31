@@ -1,0 +1,14 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+.superpowers/
+build.log
+local.properties
+app/build/
+meld-release-key.jks
