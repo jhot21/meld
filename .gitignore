@@ -8,6 +8,7 @@
 .externalNativeBuild
 .cxx
 .superpowers/
+.worktrees/
 build.log
 local.properties
 app/build/
