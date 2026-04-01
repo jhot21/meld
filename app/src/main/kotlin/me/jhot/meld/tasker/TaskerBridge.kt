@@ -3,7 +3,7 @@ package me.jhot.meld.tasker
 import android.content.Context
 import com.joaomgcd.taskerpluginlibrary.condition.TaskerPluginRunnerCondition
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import me.jhot.meld.MeldApplication
 
@@ -41,12 +41,12 @@ class TaskerBridge(private val context: Context, private val scope: CoroutineSco
         scope.launch {
             var previousIds: Set<Long>? = null
 
-            activeModeDao.getActiveModeIds().collectLatest { currentIds ->
+            activeModeDao.getActiveModeIds().collect { currentIds ->
                 val prev = previousIds
                 if (prev == null) {
                     // First emission: store baseline; skip diffing to avoid spurious events.
                     previousIds = currentIds
-                    return@collectLatest
+                    return@collect
                 }
 
                 val (added, removed) = diffSets(prev, currentIds)

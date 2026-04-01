@@ -87,24 +87,29 @@
         </activity>
 
         <!-- Event: Mode Activated -->
+        <!-- Event plugins use EDIT_CONDITION / PLUGIN_CONDITION, not EDIT_SETTING / PLUGIN_SETTING.
+             The twofortyfouram/joaomgcd plugin SDK has no separate EDIT_EVENT intent — events and
+             state conditions share the same manifest category. Tasker distinguishes them at runtime
+             via the TaskerPluginRunnerConditionEvent.isEvent flag on the runner class. -->
         <activity
             android:name=".tasker.ModeActivatedActivity"
             android:exported="true"
             android:label="@string/tasker_event_mode_activated">
             <intent-filter>
-                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
-                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_SETTING" />
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_CONDITION" />
+                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_CONDITION" />
             </intent-filter>
         </activity>
 
         <!-- Event: Mode Deactivated -->
+        <!-- See comment on ModeActivatedActivity above — same reasoning applies. -->
         <activity
             android:name=".tasker.ModeDeactivatedActivity"
             android:exported="true"
             android:label="@string/tasker_event_mode_deactivated">
             <intent-filter>
-                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
-                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_SETTING" />
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_CONDITION" />
+                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_CONDITION" />
             </intent-filter>
         </activity>
     </application>
