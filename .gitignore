@@ -12,3 +12,4 @@ build.log
 local.properties
 app/build/
 meld-release-key.jks
+docs/superpowers/
