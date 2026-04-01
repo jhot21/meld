@@ -5,4 +5,9 @@
     <string name="save">Save</string>
     <string name="tasker_action_add_to_context">Meld - Add to Context</string>
     <string name="tasker_action_remove_from_context">Meld - Remove from Context</string>
+    <string name="tasker_condition_mode_state">Meld - Mode State</string>
+    <string name="tasker_event_mode_activated">Meld - Mode Activated</string>
+    <string name="tasker_event_mode_deactivated">Meld - Mode Deactivated</string>
+    <string name="state_direction_active">Active</string>
+    <string name="state_direction_inactive">Inactive</string>
 </resources>
