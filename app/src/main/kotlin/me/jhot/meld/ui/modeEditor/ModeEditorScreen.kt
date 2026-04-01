@@ -49,6 +49,9 @@ import me.jhot.meld.data.model.LocationMode
 import me.jhot.meld.data.model.ModeSettings
 import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.data.model.RingerMode
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import me.jhot.meld.ui.components.NullableSegmentedButtonRow
 import me.jhot.meld.ui.components.SettingsSection
 import me.jhot.meld.ui.components.SliderRow
@@ -146,12 +149,18 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
 
                 Text("Type", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(4.dp))
-                NullableSegmentedButtonRow(
-                    options = listOf(ModeType.PRIMARY, ModeType.SECONDARY),
-                    selected = draft.type,
-                    onSelect = { it?.let { t -> viewModel.updateType(t) } },
-                    labelFor = { if (it == ModeType.PRIMARY) "Primary" else "Secondary" },
-                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = draft.type == ModeType.PRIMARY,
+                        onClick = { viewModel.updateType(ModeType.PRIMARY) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    ) { Text("Primary") }
+                    SegmentedButton(
+                        selected = draft.type == ModeType.SECONDARY,
+                        onClick = { viewModel.updateType(ModeType.SECONDARY) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    ) { Text("Secondary") }
+                }
 
                 Spacer(Modifier.height(12.dp))
                 Text(

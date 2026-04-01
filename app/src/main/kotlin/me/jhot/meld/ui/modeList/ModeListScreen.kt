@@ -2,6 +2,7 @@ package me.jhot.meld.ui.modeList
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -201,7 +202,9 @@ private fun ModeListItem(
         enableDismissFromStartToEnd = false,
         backgroundContent = {
             Box(
-                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxSize()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.error),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
@@ -252,10 +255,17 @@ private fun ModeListItem(
                         }
                     }
                 }
-                Switch(
-                    checked = isActive,
-                    onCheckedChange = { onToggle() },
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Switch(
+                        checked = isActive,
+                        onCheckedChange = { onToggle() },
+                    )
+                    Text(
+                        if (isActive) "Active" else "Inactive",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

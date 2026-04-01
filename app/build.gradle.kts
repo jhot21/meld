@@ -35,6 +35,7 @@ android {
 
     buildFeatures {
         compose = true
+        aidl = true
     }
 }
 
@@ -65,6 +66,10 @@ dependencies {
     // JSON + Tasker
     implementation(libs.gson)
     implementation(libs.tasker.plugin)
+
+    // Shizuku
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     // Tests
     testImplementation(libs.junit)

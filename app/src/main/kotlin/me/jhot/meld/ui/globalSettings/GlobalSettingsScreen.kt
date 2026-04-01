@@ -46,6 +46,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import me.jhot.meld.ui.globalSettings.ShizukuState
 
 private const val ADB_COMMAND =
     "adb shell pm grant me.jhot.meld android.permission.WRITE_SECURE_SETTINGS"
@@ -58,6 +59,7 @@ fun GlobalSettingsScreen(navController: NavController) {
     val writeSettingsGranted by viewModel.writeSettingsGranted.collectAsState()
     val notificationPolicyGranted by viewModel.notificationPolicyGranted.collectAsState()
     val secureSettingsGranted by viewModel.secureSettingsGranted.collectAsState()
+    val shizukuState by viewModel.shizukuState.collectAsState()
 
     val context = LocalContext.current
 
@@ -131,14 +133,31 @@ fun GlobalSettingsScreen(navController: NavController) {
             // WRITE_SECURE_SETTINGS
             PermissionCard(
                 title = "Write secure settings",
-                description = "Required for dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, location mode, and Bluetooth. Must be granted via ADB.",
+                description = "Required for dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, location mode, and Bluetooth. Must be granted via ADB or Shizuku.",
                 granted = secureSettingsGranted,
             ) {
                 Column {
-                    Text(
-                        "Run this command in a terminal with your phone connected via USB:",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    if (shizukuState != ShizukuState.Unavailable) {
+                        Button(onClick = { viewModel.grantSecureSettingsViaShizuku() }) {
+                            Text(
+                                if (shizukuState == ShizukuState.NeedsPermission)
+                                    "Grant via Shizuku (tap to authorize)"
+                                else
+                                    "Grant via Shizuku"
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Or use ADB:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            "Run this command in a terminal with your phone connected via USB:",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text(
                         ADB_COMMAND,
