@@ -74,5 +74,38 @@
                 <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_SETTING" />
             </intent-filter>
         </activity>
+
+        <!-- Condition: Mode State -->
+        <activity
+            android:name=".tasker.ModeStateActivity"
+            android:exported="true"
+            android:label="@string/tasker_condition_mode_state">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_CONDITION" />
+                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_CONDITION" />
+            </intent-filter>
+        </activity>
+
+        <!-- Event: Mode Activated -->
+        <activity
+            android:name=".tasker.ModeActivatedActivity"
+            android:exported="true"
+            android:label="@string/tasker_event_mode_activated">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_SETTING" />
+            </intent-filter>
+        </activity>
+
+        <!-- Event: Mode Deactivated -->
+        <activity
+            android:name=".tasker.ModeDeactivatedActivity"
+            android:exported="true"
+            android:label="@string/tasker_event_mode_deactivated">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+                <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_SETTING" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

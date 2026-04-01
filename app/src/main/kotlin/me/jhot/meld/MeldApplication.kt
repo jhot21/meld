@@ -3,14 +3,20 @@ package me.jhot.meld
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import me.jhot.meld.data.db.ActiveDatabase
 import me.jhot.meld.data.db.MeldDatabase
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.OverrideSessionStore
 import me.jhot.meld.service.PermissionChecker
 import me.jhot.meld.service.SettingsApplier
+import me.jhot.meld.tasker.TaskerBridge
 
 class MeldApplication : Application() {
+
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val database: MeldDatabase by lazy {
         Room.databaseBuilder(this, MeldDatabase::class.java, "meld.db").build()
@@ -38,5 +44,10 @@ class MeldApplication : Application() {
             activeModeDao = activeDatabase.activeModeDao(),
             settingsApplier = settingsApplier,
         )
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        TaskerBridge(this, applicationScope).start()
     }
 }
