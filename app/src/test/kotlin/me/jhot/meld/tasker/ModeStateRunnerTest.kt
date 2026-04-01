@@ -39,4 +39,9 @@ class ModeStateRunnerTest {
     fun anyMode_noneActive_directionInactive_satisfied() {
         assertTrue(evaluateCondition(activeIds = emptySet(), modeId = null, direction = StateDirection.INACTIVE))
     }
+
+    @Test
+    fun anyMode_someActive_directionInactive_unsatisfied() {
+        assertFalse(evaluateCondition(activeIds = setOf(3L), modeId = null, direction = StateDirection.INACTIVE))
+    }
 }

@@ -44,6 +44,19 @@ class ModeStateRunner : TaskerPluginRunnerConditionState<ModeStateInput, Unit>()
     }
 }
 
+// QUERY_CONDITION implementation note (Option B):
+// No custom BroadcastReceiver or IntentService subclass is needed for QUERY_CONDITION.
+// The taskerpluginlibrary 0.4.10 AAR manifest already registers two built-in entry points:
+//   - com.joaomgcd.taskerpluginlibrary.condition.BroadcastReceiverCondition (final)
+//   - com.joaomgcd.taskerpluginlibrary.condition.IntentServiceCondition (not final, but unnecessary)
+// Both are registered for com.twofortyfouram.locale.intent.action.QUERY_CONDITION and are
+// merged into the app's merged manifest automatically via Gradle manifest merger.
+// When Tasker fires QUERY_CONDITION it embeds the runner class name in the plugin bundle extras;
+// the library's built-in receivers use Class.forName() to instantiate ModeStateRunner and
+// invoke getSatisfiedCondition(). No additional manifest entry or subclass is required.
+// TaskerBridge (when implemented) should call
+//   TaskerPluginRunnerCondition.Companion.requestQuery(context, ModeStateActivity::class.java)
+// to ask Tasker to re-evaluate all ModeState conditions whenever active modes change.
 class ModeStateHelper(config: TaskerPluginConfig<ModeStateInput>) :
     TaskerPluginConfigHelper<ModeStateInput, Unit, ModeStateRunner>(config) {
     override val runnerClass get() = ModeStateRunner::class.java
