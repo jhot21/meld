@@ -80,7 +80,7 @@ class ModeEditorViewModelTest {
         // same id is excluded from conflict check
         val existing = mode(1L, "Work")
         val vm = viewModel(modes = listOf(existing))
-        vm.loadMode(1L)  // sets originalMode and draft to existing
+        vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
         assertFalse(vm.nameConflict.value)
     }
 
@@ -89,7 +89,7 @@ class ModeEditorViewModelTest {
         val work = mode(1L, "Work")
         val home = mode(2L, "Home")
         val vm = viewModel(modes = listOf(work, home))
-        vm.loadMode(1L)          // editing "Work" (id=1)
+        vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
         vm.updateName("Home")    // trying to rename to existing "Home" (id=2)
         assertTrue(vm.nameConflict.value)
     }
@@ -98,7 +98,7 @@ class ModeEditorViewModelTest {
     fun nameConflict_isFalse_whenEditingModeChangesNameToNewUniqueName() {
         val work = mode(1L, "Work")
         val vm = viewModel(modes = listOf(work))
-        vm.loadMode(1L)
+        vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
         vm.updateName("Office")
         assertFalse(vm.nameConflict.value)
     }
