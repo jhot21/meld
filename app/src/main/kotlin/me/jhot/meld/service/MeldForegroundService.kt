@@ -25,7 +25,9 @@ class MeldForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        const val CHANNEL_ID = "meld_background"
+        const val CHANNEL_ID = "meld_background_v2"
+        /** Legacy channel ID created with IMPORTANCE_MIN; kept here only for cleanup. */
+        const val CHANNEL_ID_V1 = "meld_background"
         const val NOTIFICATION_ID = 1
     }
 }

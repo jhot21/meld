@@ -70,10 +70,11 @@ class MeldApplication : Application() {
 
     private fun createNotificationChannel() {
         val nm = getSystemService(NotificationManager::class.java)!! // Non-null: minSdk 31 guarantees NotificationManager is always available.
-        // Delete any stale channel so that a fresh one is created with the correct importance.
-        // (Android ignores importance updates on existing channels, so a stale channel created
-        // with IMPORTANCE_MIN would persist across updates and suppress the notification.)
-        nm.deleteNotificationChannel(MeldForegroundService.CHANNEL_ID)
+        // One-time cleanup: delete the v1 channel which was created with IMPORTANCE_MIN.
+        // Android ignores importance updates on existing channels, so the old channel would
+        // suppress the notification. Deleting it here is safe — deleteNotificationChannel is a
+        // no-op once it's gone, so this runs harmlessly on every future launch.
+        nm.deleteNotificationChannel(MeldForegroundService.CHANNEL_ID_V1)
         val channel = NotificationChannel(
             MeldForegroundService.CHANNEL_ID,
             "Background service",
