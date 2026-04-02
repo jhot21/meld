@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.jhot.meld.MeldApplication
 import me.jhot.meld.R
+import me.jhot.meld.data.model.ModeType
 
 class ModeStateActivity : Activity(), TaskerPluginConfig<ModeStateInput> {
 
@@ -61,7 +62,9 @@ class ModeStateActivity : Activity(), TaskerPluginConfig<ModeStateInput> {
 
         val app = applicationContext as MeldApplication
         activityScope.launch {
-            val modeNames = app.database.modeDao().getAll().first().map { it.name }
+            val modeNames = app.database.modeDao().getAll().first()
+                .filter { it.type != ModeType.DEFAULT }
+                .map { it.name }
             val items = listOf("Any Mode") + modeNames
             withContext(Dispatchers.Main) {
                 dropdown.setAdapter(ArrayAdapter(this@ModeStateActivity, android.R.layout.simple_dropdown_item_1line, items))

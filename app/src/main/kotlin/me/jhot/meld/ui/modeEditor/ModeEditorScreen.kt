@@ -67,6 +67,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
     }
 
     val draft by viewModel.draft.collectAsState()
+    val isDefaultMode = draft.type == ModeType.DEFAULT
     val isDirty by viewModel.isDirty.collectAsState()
     val saveComplete by viewModel.saveComplete.collectAsState()
     val secureGranted = viewModel.secureSettingsGranted
@@ -111,7 +112,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
             TopAppBar(
                 title = {
                     Text(when {
-                        viewModel.isDefaultMode -> "Default Mode"
+                        isDefaultMode -> "Default Mode"
                         viewModel.isNew -> "New Mode"
                         else -> "Edit Mode"
                     })
@@ -144,7 +145,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
         ) {
 
             // ---- Identity — hidden for the DEFAULT mode -------------------------
-            if (!viewModel.isDefaultMode) {
+            if (!isDefaultMode) {
                 SettingsSection(title = "Identity") {
                     OutlinedTextField(
                         value = draft.name,

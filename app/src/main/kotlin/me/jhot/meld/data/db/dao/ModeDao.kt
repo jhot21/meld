@@ -16,9 +16,6 @@ interface ModeDao {
     @Query("SELECT * FROM modes WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): Mode?
 
-    @Query("SELECT * FROM modes WHERE type = 'DEFAULT' LIMIT 1")
-    fun getDefaultMode(): Flow<Mode?>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(mode: Mode): Long
 
