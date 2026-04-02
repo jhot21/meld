@@ -1,13 +1,20 @@
 package me.jhot.meld
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import androidx.room.Room
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import me.jhot.meld.data.db.ActiveDatabase
 import me.jhot.meld.data.db.MeldDatabase
+import me.jhot.meld.receiver.NtfyReceiver
+import me.jhot.meld.service.MeldForegroundService
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.OverrideSessionStore
 import me.jhot.meld.service.PermissionChecker
@@ -50,6 +57,26 @@ class MeldApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        createNotificationChannel()
+        startForegroundService(Intent(this, MeldForegroundService::class.java))
+        ContextCompat.registerReceiver(
+            this,
+            NtfyReceiver(),
+            IntentFilter(NtfyReceiver.ACTION_NTFY_MESSAGE),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
         TaskerBridge(this, applicationScope).start()
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            MeldForegroundService.CHANNEL_ID,
+            "Background service",
+            NotificationManager.IMPORTANCE_MIN,
+        ).apply {
+            description = "Keeps Meld running in the background to receive ntfy automation messages. Safe to disable — this notification has no other purpose."
+        }
+        // Non-null: minSdk 31 guarantees NotificationManager is always available.
+        getSystemService(NotificationManager::class.java)!!.createNotificationChannel(channel)
     }
 }
