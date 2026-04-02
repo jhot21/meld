@@ -58,6 +58,12 @@ class MeldApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Android 14+ restricts startForegroundService() from background contexts, but
+        // the cases where Application.onCreate() runs in the background are either:
+        //   • System restart of a killed process — the system grants a start exemption.
+        //   • After a reboot — BootReceiver now calls startForegroundService first, so
+        //     this call is a no-op duplicate (harmless; Android deduplicates starts).
+        // First launch from the user is always foreground, so no restriction applies there.
         startForegroundService(Intent(this, MeldForegroundService::class.java))
         ContextCompat.registerReceiver(
             this,

@@ -18,6 +18,12 @@ class MeldForegroundService : Service() {
             .build()
         // Specifying foregroundServiceType is required when targetSdk >= 34 (Android 14+);
         // omitting it suppresses the notification without crashing.
+        //
+        // DATA_SYNC is semantically a mismatch — this service exists to keep the process alive
+        // for local IPC (ntfy broadcasts), not to sync data to a server. The correct type would
+        // be FOREGROUND_SERVICE_TYPE_SPECIAL_USE, but that requires Play Store policy review.
+        // Since this app is not distributed via Play, DATA_SYNC is used as a pragmatic stand-in.
+        // Revisit if Play distribution is ever added.
         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         return START_STICKY
     }
