@@ -408,6 +408,17 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                 }
                 Spacer(Modifier.height(8.dp))
 
+                SecureSettingWrapper(label = "Keyboard Vibration", secureGranted = secureGranted) {
+                    NullableSegmentedButtonRow(
+                        options = listOf(true, false),
+                        selected = settings.keyboardVibration,
+                        onSelect = { updateSettings { copy(keyboardVibration = it) } },
+                        labelFor = { if (it) "ON" else "OFF" },
+                        enabled = secureGranted,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+
                 SecureSettingWrapper(label = "Battery Saver", secureGranted = secureGranted) {
                     NullableSegmentedButtonRow(
                         options = listOf(true, false),

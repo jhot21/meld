@@ -35,7 +35,7 @@ class MeldApplication : Application() {
     val permissionChecker: PermissionChecker by lazy { PermissionChecker(this) }
 
     val settingsApplier: SettingsApplier by lazy {
-        SettingsApplier(this, permissionChecker, overrideSessionStore)
+        SettingsApplier(this, permissionChecker, overrideSessionStore, applicationScope)
     }
 
     val modeRepository: ModeRepository by lazy {

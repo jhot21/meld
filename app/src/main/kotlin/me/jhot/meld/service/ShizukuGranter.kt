@@ -6,8 +6,8 @@ import android.content.pm.PackageManager
 import android.os.IBinder
 import me.jhot.meld.IShizukuService
 import rikka.shizuku.Shizuku
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 object ShizukuGranter {
 
@@ -31,7 +31,7 @@ object ShizukuGranter {
      * Must be called from a coroutine (suspends until the service responds).
      */
     suspend fun grantSecureSettings(packageName: String): Boolean =
-        suspendCoroutine { cont ->
+        suspendCancellableCoroutine { cont ->
             val connection = object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName, binder: IBinder) {
                     val success = try {
@@ -41,17 +41,46 @@ object ShizukuGranter {
                         false
                     }
                     try { Shizuku.unbindUserService(serviceArgs, this, true) } catch (_: Exception) {}
-                    cont.resume(success)
+                    if (cont.isActive) cont.resume(success)
                 }
 
                 override fun onServiceDisconnected(name: ComponentName) {
-                    cont.resume(false)
+                    if (cont.isActive) cont.resume(false)
                 }
             }
             try {
                 Shizuku.bindUserService(serviceArgs, connection)
             } catch (e: Exception) {
-                cont.resume(false)
+                if (cont.isActive) cont.resume(false)
+            }
+        }
+
+    /**
+     * Binds the Shizuku UserService, runs `settings put <namespace> <key> <value>`, then unbinds.
+     * Must be called from a coroutine (suspends until the service responds).
+     */
+    suspend fun putSetting(namespace: SettingNamespace, key: String, value: Int): Boolean =
+        suspendCancellableCoroutine { cont ->
+            val connection = object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                    val success = try {
+                        IShizukuService.Stub.asInterface(binder).putSetting(namespace.value, key, value)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                    try { Shizuku.unbindUserService(serviceArgs, this, true) } catch (_: Exception) {}
+                    if (cont.isActive) cont.resume(success)
+                }
+
+                override fun onServiceDisconnected(name: ComponentName) {
+                    if (cont.isActive) cont.resume(false)
+                }
+            }
+            try {
+                Shizuku.bindUserService(serviceArgs, connection)
+            } catch (e: Exception) {
+                if (cont.isActive) cont.resume(false)
             }
         }
 }

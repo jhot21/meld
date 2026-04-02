@@ -4,12 +4,19 @@ import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioManager
 import android.provider.Settings
+import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import me.jhot.meld.data.model.*
+
+private const val TAG = "SettingsApplier"
+private const val KEY_KEYBOARD_VIBRATION = "keyboard_vibration_enabled"
 
 class SettingsApplier(
     private val context: Context,
     private val permissionChecker: PermissionChecker,
     private val overrideSessionStore: OverrideSessionStore,
+    private val applicationScope: CoroutineScope,
 ) {
 
     fun apply(settings: ModeSettings) {
@@ -152,6 +159,20 @@ class SettingsApplier(
 
         settings.hapticFeedback?.let {
             Settings.System.putInt(resolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, if (it) 1 else 0)
+        }
+
+        settings.keyboardVibration?.let { enabled ->
+            val value = if (enabled) 1 else 0
+            try {
+                Settings.System.putInt(resolver, KEY_KEYBOARD_VIBRATION, value)
+            } catch (e: IllegalArgumentException) {
+                if (ShizukuGranter.hasPermission()) {
+                    applicationScope.launch {
+                        val ok = ShizukuGranter.putSetting(SettingNamespace.SYSTEM, KEY_KEYBOARD_VIBRATION, value)
+                        if (!ok) Log.w(TAG, "Shizuku fallback for $KEY_KEYBOARD_VIBRATION failed")
+                    }
+                }
+            }
         }
 
         settings.batterySaver?.let {

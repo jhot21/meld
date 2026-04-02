@@ -98,4 +98,21 @@ class ModeResolverTest {
         assertEquals(true, result.darkMode)
         assertNull(result.brightness)
     }
+
+    @Test
+    fun keyboardVibration_higherPriorityModeWins() {
+        val low = mode(1, ModeType.PRIMARY, 10, settings = ModeSettings(keyboardVibration = false))
+        val high = mode(2, ModeType.PRIMARY, 50, settings = ModeSettings(keyboardVibration = true))
+        val result = ModeResolver.resolve(listOf(low, high), setOf(1L, 2L))
+        assertEquals(true, result.keyboardVibration)
+    }
+
+    @Test
+    fun keyboardVibration_unsetDoesNotOverrideExplicitValue() {
+        val primary = mode(1, ModeType.PRIMARY, 50, settings = ModeSettings(keyboardVibration = false))
+        val secondary = mode(2, ModeType.SECONDARY, 50, settings = ModeSettings())
+        val result = ModeResolver.resolve(listOf(primary, secondary), setOf(1L, 2L))
+        // secondary has keyboardVibration=null → null ?: false = false (primary's value passes through)
+        assertEquals(false, result.keyboardVibration)
+    }
 }

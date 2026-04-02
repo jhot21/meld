@@ -14,6 +14,15 @@ class ShizukuService : IShizukuService.Stub() {
             .waitFor()
     }
 
+    override fun putSetting(namespace: String, key: String, value: Int) {
+        require(namespace in setOf("system", "secure", "global")) {
+            "Invalid settings namespace: $namespace"
+        }
+        Runtime.getRuntime()
+            .exec(arrayOf("settings", "put", namespace, key, value.toString()))
+            .waitFor()
+    }
+
     override fun destroy() {
         System.exit(0)
     }
