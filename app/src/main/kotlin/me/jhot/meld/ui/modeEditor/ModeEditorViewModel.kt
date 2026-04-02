@@ -40,6 +40,9 @@ class ModeEditorViewModel(
 
     val isNew: Boolean get() = originalMode == null
 
+    /** True when editing the always-active DEFAULT mode. */
+    val isDefaultMode: Boolean get() = _draft.value.type == ModeType.DEFAULT
+
     /** True if WRITE_SECURE_SETTINGS is granted (cached — won't change mid-session). */
     val secureSettingsGranted: Boolean get() = permissionChecker.canWriteSecureSettings()
 
@@ -67,10 +70,6 @@ class ModeEditorViewModel(
         _draft.update { it.copy(priority = priority.coerceIn(0, 100), updatedAt = System.currentTimeMillis()) }
     }
 
-    fun updateIsDefault(isDefault: Boolean) {
-        _draft.update { it.copy(isDefault = isDefault, updatedAt = System.currentTimeMillis()) }
-    }
-
     fun updateSettings(settings: ModeSettings) {
         _draft.update { it.copy(settings = settings, updatedAt = System.currentTimeMillis()) }
     }
@@ -79,11 +78,9 @@ class ModeEditorViewModel(
         viewModelScope.launch {
             val d = _draft.value
             if (isNew) {
-                val id = repository.insertMode(d)
-                if (d.isDefault) repository.setDefault(id)
+                repository.insertMode(d)
             } else {
                 repository.updateMode(d)
-                if (d.isDefault) repository.setDefault(d.id)
             }
             _saveComplete.value = true
         }

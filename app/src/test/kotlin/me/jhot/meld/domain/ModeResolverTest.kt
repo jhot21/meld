@@ -10,9 +10,8 @@ class ModeResolverTest {
         id: Long,
         type: ModeType,
         priority: Int,
-        isDefault: Boolean = false,
         settings: ModeSettings = ModeSettings(),
-    ) = Mode(id = id, name = "mode$id", type = type, priority = priority, isDefault = isDefault, settings = settings)
+    ) = Mode(id = id, name = "mode$id", type = type, priority = priority, settings = settings)
 
     @Test
     fun noModesAtAll_returnsEmptySettings() {

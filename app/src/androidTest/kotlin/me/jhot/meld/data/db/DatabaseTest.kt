@@ -48,19 +48,6 @@ class DatabaseTest {
     }
 
     @Test
-    fun clearingDefaultWhenSettingNewDefault() = runTest {
-        val dao = meldDb.modeDao()
-        val id1 = dao.insert(Mode(name = "home", type = ModeType.PRIMARY, priority = 10, isDefault = true))
-        val id2 = dao.insert(Mode(name = "work", type = ModeType.PRIMARY, priority = 20))
-        dao.setDefault(id2)
-        val modes = dao.getAll().first()
-        val home = modes.first { it.id == id1 }
-        val work = modes.first { it.id == id2 }
-        assertFalse(home.isDefault)
-        assertTrue(work.isDefault)
-    }
-
-    @Test
     fun activeModesClearedCorrectly() = runTest {
         val activeDao = activeDb.activeModeDao()
         activeDao.insert(ActiveMode(modeId = 1L))

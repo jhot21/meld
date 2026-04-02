@@ -174,26 +174,6 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                if (draft.type == ModeType.PRIMARY) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Default mode", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "Used when no primary mode is active",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = draft.isDefault,
-                            onCheckedChange = viewModel::updateIsDefault,
-                        )
-                    }
-                }
             }
 
             HorizontalDivider()

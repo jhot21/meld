@@ -2,6 +2,7 @@ package me.jhot.meld.data.db.dao
 
 import androidx.room.*
 import me.jhot.meld.data.model.Mode
+import me.jhot.meld.data.model.ModeType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -15,6 +16,9 @@ interface ModeDao {
     @Query("SELECT * FROM modes WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): Mode?
 
+    @Query("SELECT * FROM modes WHERE type = 'DEFAULT' LIMIT 1")
+    fun getDefaultMode(): Flow<Mode?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(mode: Mode): Long
 
@@ -25,15 +29,8 @@ interface ModeDao {
     suspend fun delete(mode: Mode)
 
     @Transaction
-    suspend fun setDefault(id: Long) {
-        getById(id) ?: return
-        clearDefault()
-        setDefaultById(id)
+    suspend fun deleteSafe(mode: Mode) {
+        check(mode.type != ModeType.DEFAULT) { "Cannot delete the DEFAULT mode" }
+        delete(mode)
     }
-
-    @Query("UPDATE modes SET isDefault = 0 WHERE isDefault = 1")
-    suspend fun clearDefault()
-
-    @Query("UPDATE modes SET isDefault = 1 WHERE id = :id")
-    suspend fun setDefaultById(id: Long)
 }

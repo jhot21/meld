@@ -245,14 +245,6 @@ private fun ModeListItem(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        if (mode.isDefault) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Default",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

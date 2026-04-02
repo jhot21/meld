@@ -61,11 +61,9 @@ class ModeRepository(
 
     suspend fun deleteMode(mode: Mode) {
         activeModeDao.deleteByModeId(mode.id)
-        modeDao.delete(mode)
+        modeDao.deleteSafe(mode)
         resolveAndApply()
     }
-
-    suspend fun setDefault(modeId: Long) = modeDao.setDefault(modeId)
 
     fun getAllModes(): Flow<List<Mode>> = modeDao.getAll()
 }

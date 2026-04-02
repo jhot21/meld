@@ -13,7 +13,6 @@ data class Mode(
     val name: String,
     val type: ModeType,
     val priority: Int,
-    val isDefault: Boolean = false,
     val settings: ModeSettings = ModeSettings(),
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
