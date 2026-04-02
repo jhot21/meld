@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -46,6 +47,16 @@ class ModeEditorViewModel(
     /** True if WRITE_SECURE_SETTINGS is granted (cached — won't change mid-session). */
     val secureSettingsGranted: Boolean get() = permissionChecker.canWriteSecureSettings()
 
+    /**
+     * True when the current draft name matches an existing mode that is NOT the mode being edited.
+     * Case-insensitive. False when the name is blank.
+     */
+    val nameConflict: StateFlow<Boolean> = combine(_draft, repository.getAllModes()) { draft, modes ->
+        if (draft.name.isBlank()) return@combine false
+        val conflict = modes.find { it.name.equals(draft.name, ignoreCase = true) }
+        conflict != null && conflict.id != draft.id
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     private val _saveComplete = MutableStateFlow(false)
     val saveComplete: StateFlow<Boolean> = _saveComplete.asStateFlow()
 
@@ -75,6 +86,7 @@ class ModeEditorViewModel(
     }
 
     fun save() {
+        if (nameConflict.value) return
         viewModelScope.launch {
             val d = _draft.value
             if (isNew) {
