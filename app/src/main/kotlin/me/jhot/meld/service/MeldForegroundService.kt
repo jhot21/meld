@@ -13,7 +13,7 @@ class MeldForegroundService : Service() {
             .setContentTitle("Meld")
             .setContentText("Running in the background")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         startForeground(NOTIFICATION_ID, notification)
         return START_STICKY

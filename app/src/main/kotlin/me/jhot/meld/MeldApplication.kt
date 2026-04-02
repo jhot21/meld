@@ -72,7 +72,7 @@ class MeldApplication : Application() {
         val channel = NotificationChannel(
             MeldForegroundService.CHANNEL_ID,
             "Background service",
-            NotificationManager.IMPORTANCE_MIN,
+            NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Keeps Meld running in the background to receive ntfy automation messages. Safe to disable — this notification has no other purpose."
         }
