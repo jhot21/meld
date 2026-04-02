@@ -1,5 +1,6 @@
 package me.jhot.meld.ui.modeEditor
 
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -101,5 +102,20 @@ class ModeEditorViewModelTest {
         vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
         vm.updateName("Office")
         assertFalse(vm.nameConflict.value)
+    }
+
+    @Test
+    fun save_doesNotCallRepository_whenNameConflictIsTrue() {
+        val repository = mockk<ModeRepository>(relaxed = true) {
+            every { getAllModes() } returns flowOf(listOf(mode(1L, "Work")))
+        }
+        val permissionChecker = mockk<PermissionChecker> {
+            every { canWriteSecureSettings() } returns false
+        }
+        val vm = ModeEditorViewModel(repository, permissionChecker)
+        vm.updateName("Work") // triggers conflict
+        vm.save()
+        coVerify(exactly = 0) { repository.insertMode(any()) }
+        coVerify(exactly = 0) { repository.updateMode(any()) }
     }
 }
