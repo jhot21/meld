@@ -1,19 +1,31 @@
 package me.jhot.meld.data.db
 
 import androidx.room.Room
+import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import me.jhot.meld.data.model.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.fail
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class DatabaseTest {
+
+    private val TEST_DB = "migration-test.db"
+
+    @get:Rule
+    val migrationTestHelper = MigrationTestHelper(
+        InstrumentationRegistry.getInstrumentation(),
+        MeldDatabase::class.java,
+    )
 
     private lateinit var meldDb: MeldDatabase
     private lateinit var activeDb: ActiveDatabase
@@ -64,5 +76,59 @@ class DatabaseTest {
         activeDao.insert(ActiveMode(modeId = 8L))
         val ids = activeDao.getActiveModeIds().first()
         assertEquals(setOf(5L, 8L), ids)
+    }
+
+    @Test
+    fun migration1to2_promotesIsDefaultPrimaryToDefaultType() {
+        val db = migrationTestHelper.createDatabase(TEST_DB, 1)
+        db.execSQL(
+            "INSERT INTO modes (name, type, priority, isDefault, settings, createdAt, updatedAt) " +
+            "VALUES ('home', 'PRIMARY', 50, 1, '{}', 0, 0)"
+        )
+        db.close()
+
+        val migratedDb = migrationTestHelper.runMigrationsAndValidate(TEST_DB, 2, true, MeldDatabase.MIGRATION_1_2)
+        val cursor = migratedDb.query("SELECT type, priority FROM modes WHERE name = 'home'")
+        cursor.moveToFirst()
+        assertEquals("DEFAULT", cursor.getString(0))
+        assertEquals(0, cursor.getInt(1))
+        cursor.close()
+
+        // Verify no duplicate DEFAULT rows were created by the seed INSERT
+        val countCursor = migratedDb.query("SELECT COUNT(*) FROM modes WHERE type = 'DEFAULT'")
+        countCursor.moveToFirst()
+        assertEquals(1, countCursor.getInt(0))
+        countCursor.close()
+        migratedDb.close()
+    }
+
+    @Test
+    fun migration1to2_createsDefaultModeWhenNoneExisted() {
+        val db = migrationTestHelper.createDatabase(TEST_DB, 1)
+        db.execSQL(
+            "INSERT INTO modes (name, type, priority, isDefault, settings, createdAt, updatedAt) " +
+            "VALUES ('work', 'PRIMARY', 50, 0, '{}', 0, 0)"
+        )
+        db.close()
+
+        val migratedDb = migrationTestHelper.runMigrationsAndValidate(TEST_DB, 2, true, MeldDatabase.MIGRATION_1_2)
+        val cursor = migratedDb.query("SELECT COUNT(*) FROM modes WHERE type = 'DEFAULT'")
+        cursor.moveToFirst()
+        assertEquals(1, cursor.getInt(0))
+        cursor.close()
+        migratedDb.close()
+    }
+
+    @Test
+    fun deleteSafe_throwsForDefaultMode() = runTest {
+        val dao = meldDb.modeDao()
+        val id = dao.insert(Mode(name = "Default", type = ModeType.DEFAULT, priority = 0))
+        val defaultMode = dao.getAll().first().find { it.id == id }!!
+        try {
+            dao.deleteSafe(defaultMode)
+            fail("Expected IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertEquals("Cannot delete the DEFAULT mode", e.message)
+        }
     }
 }
