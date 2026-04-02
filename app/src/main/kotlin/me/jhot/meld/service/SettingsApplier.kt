@@ -189,8 +189,15 @@ class SettingsApplier(
             Settings.Secure.putInt(resolver, "location_mode", value)
         }
 
-        settings.bluetooth?.let {
-            Settings.Global.putInt(resolver, "bluetooth_on", if (it) 1 else 0)
+        settings.bluetooth?.let { enable ->
+            if (ShizukuGranter.hasPermission()) {
+                applicationScope.launch {
+                    val ok = ShizukuGranter.setBluetooth(enable)
+                    if (!ok) Log.w(TAG, "Shizuku setBluetooth($enable) failed")
+                }
+            } else {
+                Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
+            }
         }
     }
 }

@@ -23,6 +23,13 @@ class ShizukuService : IShizukuService.Stub() {
             .waitFor()
     }
 
+    override fun setBluetooth(enable: Boolean) {
+        val action = if (enable) "enable" else "disable"
+        Runtime.getRuntime()
+            .exec(arrayOf("cmd", "bluetooth_manager", action))
+            .waitFor()
+    }
+
     override fun destroy() {
         System.exit(0)
     }

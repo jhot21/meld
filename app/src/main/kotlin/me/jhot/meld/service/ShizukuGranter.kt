@@ -56,6 +56,35 @@ object ShizukuGranter {
         }
 
     /**
+     * Binds the Shizuku UserService, runs `cmd bluetooth_manager enable/disable`, then unbinds.
+     * Must be called from a coroutine (suspends until the service responds).
+     */
+    suspend fun setBluetooth(enable: Boolean): Boolean =
+        suspendCancellableCoroutine { cont ->
+            val connection = object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                    val success = try {
+                        IShizukuService.Stub.asInterface(binder).setBluetooth(enable)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                    try { Shizuku.unbindUserService(serviceArgs, this, true) } catch (_: Exception) {}
+                    if (cont.isActive) cont.resume(success)
+                }
+
+                override fun onServiceDisconnected(name: ComponentName) {
+                    if (cont.isActive) cont.resume(false)
+                }
+            }
+            try {
+                Shizuku.bindUserService(serviceArgs, connection)
+            } catch (e: Exception) {
+                if (cont.isActive) cont.resume(false)
+            }
+        }
+
+    /**
      * Binds the Shizuku UserService, runs `settings put <namespace> <key> <value>`, then unbinds.
      * Must be called from a coroutine (suspends until the service responds).
      */
