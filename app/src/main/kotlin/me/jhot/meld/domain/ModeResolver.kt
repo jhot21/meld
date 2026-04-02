@@ -14,9 +14,8 @@ object ModeResolver {
         val winningPrimary = activePrimaries.maxByOrNull { it.priority }
 
         val workingSet: List<Mode> = if (winningPrimary != null) {
-            val threshold = winningPrimary.priority
             val includedSecondaries = activeModes.filter {
-                it.type == ModeType.SECONDARY && it.priority >= threshold
+                it.type == ModeType.SECONDARY
             }
             listOf(winningPrimary) + includedSecondaries
         } else {

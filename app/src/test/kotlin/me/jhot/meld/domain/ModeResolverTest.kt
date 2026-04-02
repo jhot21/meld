@@ -46,12 +46,23 @@ class ModeResolverTest {
     }
 
     @Test
-    fun secondaryBelowWinningPrimaryPriority_excluded() {
+    fun secondaryBelowExclusive_isIncluded_exclusiveWinsOnConflict() {
+        // Secondary at priority 5, exclusive at priority 50 — both contribute but exclusive wins on conflict
+        val work = mode(1, ModeType.PRIMARY, 50, settings = ModeSettings(brightness = 200))
+        val casual = mode(2, ModeType.SECONDARY, 5, settings = ModeSettings(brightness = 50))
+        val result = ModeResolver.resolve(listOf(work, casual), setOf(1L, 2L))
+        // exclusive (priority 50) is sorted after casual (priority 5) and wins the conflict
+        assertEquals(200, result.brightness)
+    }
+
+    @Test
+    fun secondaryBelowExclusive_contributesNonConflictingSettings() {
+        // Secondary at priority 5, exclusive at priority 50 — secondary's non-conflicting settings included
         val work = mode(1, ModeType.PRIMARY, 50, settings = ModeSettings(volumeMedia = 8))
         val casual = mode(2, ModeType.SECONDARY, 5, settings = ModeSettings(brightness = 50))
         val result = ModeResolver.resolve(listOf(work, casual), setOf(1L, 2L))
         assertEquals(8, result.volumeMedia)
-        assertNull(result.brightness)
+        assertEquals(50, result.brightness)  // secondary contributes brightness (work doesn't set it)
     }
 
     @Test
