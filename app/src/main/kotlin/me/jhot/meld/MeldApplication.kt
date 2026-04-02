@@ -69,6 +69,11 @@ class MeldApplication : Application() {
     }
 
     private fun createNotificationChannel() {
+        val nm = getSystemService(NotificationManager::class.java)!! // Non-null: minSdk 31 guarantees NotificationManager is always available.
+        // Delete any stale channel so that a fresh one is created with the correct importance.
+        // (Android ignores importance updates on existing channels, so a stale channel created
+        // with IMPORTANCE_MIN would persist across updates and suppress the notification.)
+        nm.deleteNotificationChannel(MeldForegroundService.CHANNEL_ID)
         val channel = NotificationChannel(
             MeldForegroundService.CHANNEL_ID,
             "Background service",
@@ -76,7 +81,6 @@ class MeldApplication : Application() {
         ).apply {
             description = "Keeps Meld running in the background to receive ntfy automation messages. Safe to disable — this notification has no other purpose."
         }
-        // Non-null: minSdk 31 guarantees NotificationManager is always available.
-        getSystemService(NotificationManager::class.java)!!.createNotificationChannel(channel)
+        nm.createNotificationChannel(channel)
     }
 }

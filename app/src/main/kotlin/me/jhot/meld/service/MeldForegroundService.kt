@@ -2,6 +2,7 @@ package me.jhot.meld.service
 
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import me.jhot.meld.R
@@ -15,7 +16,9 @@ class MeldForegroundService : Service() {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-        startForeground(NOTIFICATION_ID, notification)
+        // Specifying foregroundServiceType is required when targetSdk >= 34 (Android 14+);
+        // omitting it suppresses the notification without crashing.
+        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         return START_STICKY
     }
 
