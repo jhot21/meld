@@ -14,6 +14,7 @@ import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.PermissionChecker
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -117,5 +118,25 @@ class ModeEditorViewModelTest {
         vm.save()
         coVerify(exactly = 0) { repository.insertMode(any()) }
         coVerify(exactly = 0) { repository.updateMode(any()) }
+    }
+
+    @Test
+    fun newMode_defaultsToSecondaryType() {
+        val vm = viewModel()
+        assertEquals(ModeType.SECONDARY, vm.draft.value.type)
+    }
+
+    @Test
+    fun updateExclusive_true_setsPrimaryType() {
+        val vm = viewModel()
+        vm.updateExclusive(true)
+        assertEquals(ModeType.PRIMARY, vm.draft.value.type)
+    }
+
+    @Test
+    fun updateExclusive_false_setsSecondaryType() {
+        val vm = viewModel()
+        vm.updateExclusive(false)
+        assertEquals(ModeType.SECONDARY, vm.draft.value.type)
     }
 }

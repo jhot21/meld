@@ -29,7 +29,7 @@ class ModeEditorViewModel(
 ) : ViewModel() {
 
     private val _draft = MutableStateFlow(
-        Mode(name = "", type = ModeType.PRIMARY, priority = 50),
+        Mode(name = "", type = ModeType.SECONDARY, priority = 50),
     )
     val draft: StateFlow<Mode> = _draft.asStateFlow()
 
@@ -75,6 +75,10 @@ class ModeEditorViewModel(
 
     fun updateType(type: ModeType) {
         _draft.update { it.copy(type = type, updatedAt = System.currentTimeMillis()) }
+    }
+
+    fun updateExclusive(exclusive: Boolean) {
+        updateType(if (exclusive) ModeType.PRIMARY else ModeType.SECONDARY)
     }
 
     fun updatePriority(priority: Int) {
