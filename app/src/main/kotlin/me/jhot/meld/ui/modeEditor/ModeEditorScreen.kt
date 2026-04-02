@@ -69,6 +69,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
     val draft by viewModel.draft.collectAsState()
     val isDefaultMode = draft.type == ModeType.DEFAULT
     val isDirty by viewModel.isDirty.collectAsState()
+    val nameConflict by viewModel.nameConflict.collectAsState()
     val saveComplete by viewModel.saveComplete.collectAsState()
     val secureGranted = viewModel.secureSettingsGranted
 
@@ -129,7 +130,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                 actions = {
                     IconButton(
                         onClick = { viewModel.save() },
-                        enabled = draft.name.isNotBlank(),
+                        enabled = draft.name.isNotBlank() && !nameConflict,
                     ) {
                         Icon(Icons.Default.Check, contentDescription = "Save")
                     }
@@ -152,6 +153,10 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                         onValueChange = viewModel::updateName,
                         label = { Text("Name") },
                         singleLine = true,
+                        isError = nameConflict,
+                        supportingText = if (nameConflict) {
+                            { Text("Name already exists") }
+                        } else null,
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     )
 
