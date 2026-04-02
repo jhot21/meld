@@ -111,7 +111,7 @@ class ModeResolverTest {
     @Test
     fun defaultMode_idInActiveModeIds_stillExcludedFromWorkingSet() {
         // Even if the DEFAULT mode's id is passed in activeModeIds, it must not participate
-        // in working-set construction (no primary selection, no secondary threshold).
+        // in working-set construction — it is always treated as the baseline only.
         val default = mode(1, ModeType.DEFAULT, 0, settings = ModeSettings(brightness = 80))
         val result = ModeResolver.resolve(listOf(default), setOf(1L))  // DEFAULT id in active set
         assertEquals(80, result.brightness)   // still the DEFAULT baseline
