@@ -67,6 +67,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
     }
 
     val draft by viewModel.draft.collectAsState()
+    val isDefaultMode = draft.type == ModeType.DEFAULT
     val isDirty by viewModel.isDirty.collectAsState()
     val saveComplete by viewModel.saveComplete.collectAsState()
     val secureGranted = viewModel.secureSettingsGranted
@@ -109,7 +110,13 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isNew) "New Mode" else "Edit Mode") },
+                title = {
+                    Text(when {
+                        isDefaultMode -> "Default Mode"
+                        viewModel.isNew -> "New Mode"
+                        else -> "Edit Mode"
+                    })
+                },
                 navigationIcon = {
                     TextButton(onClick = {
                         if (isDirty && !viewModel.isNew) {
@@ -137,64 +144,46 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                 .verticalScroll(rememberScrollState()),
         ) {
 
-            // ---- Identity -------------------------------------------------------
-            SettingsSection(title = "Identity") {
-                OutlinedTextField(
-                    value = draft.name,
-                    onValueChange = viewModel::updateName,
-                    label = { Text("Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                )
+            // ---- Identity — hidden for the DEFAULT mode -------------------------
+            if (!isDefaultMode) {
+                SettingsSection(title = "Identity") {
+                    OutlinedTextField(
+                        value = draft.name,
+                        onValueChange = viewModel::updateName,
+                        label = { Text("Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    )
 
-                Text("Type", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(4.dp))
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = draft.type == ModeType.PRIMARY,
-                        onClick = { viewModel.updateType(ModeType.PRIMARY) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    ) { Text("Primary") }
-                    SegmentedButton(
-                        selected = draft.type == ModeType.SECONDARY,
-                        onClick = { viewModel.updateType(ModeType.SECONDARY) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    ) { Text("Secondary") }
-                }
-
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Priority: ${draft.priority}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Slider(
-                    value = draft.priority.toFloat(),
-                    onValueChange = { viewModel.updatePriority(it.toInt()) },
-                    valueRange = 0f..100f,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                if (draft.type == ModeType.PRIMARY) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Default mode", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "Used when no primary mode is active",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = draft.isDefault,
-                            onCheckedChange = viewModel::updateIsDefault,
-                        )
+                    Text("Type", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = draft.type == ModeType.PRIMARY,
+                            onClick = { viewModel.updateType(ModeType.PRIMARY) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        ) { Text("Primary") }
+                        SegmentedButton(
+                            selected = draft.type == ModeType.SECONDARY,
+                            onClick = { viewModel.updateType(ModeType.SECONDARY) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        ) { Text("Secondary") }
                     }
+
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Priority: ${draft.priority}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Slider(
+                        value = draft.priority.toFloat(),
+                        onValueChange = { viewModel.updatePriority(it.toInt()) },
+                        valueRange = 0f..100f,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
                 }
-            }
+            } // end if (!isDefaultMode)
 
             HorizontalDivider()
 

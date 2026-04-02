@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.jhot.meld.MeldApplication
 import me.jhot.meld.R
+import me.jhot.meld.data.model.ModeType
 
 abstract class TaskerActionActivity : Activity(), TaskerPluginConfig<ModeNameInput> {
 
@@ -56,7 +57,9 @@ abstract class TaskerActionActivity : Activity(), TaskerPluginConfig<ModeNameInp
 
         val app = applicationContext as MeldApplication
         activityScope.launch {
-            val modeNames = app.database.modeDao().getAll().first().map { it.name }
+            val modeNames = app.database.modeDao().getAll().first()
+                .filter { it.type != ModeType.DEFAULT }
+                .map { it.name }
             withContext(Dispatchers.Main) {
                 val adapter = ArrayAdapter(
                     this@TaskerActionActivity,

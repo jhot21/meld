@@ -36,6 +36,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -65,6 +66,7 @@ fun ModeListScreen(navController: NavController) {
     val viewModel: ModeListViewModel = viewModel(factory = ModeListViewModel.Factory)
 
     val modes by viewModel.modesWithActiveState.collectAsState()
+    val defaultMode by viewModel.defaultMode.collectAsState()
     val anyPermissionMissing by viewModel.anyPermissionMissing.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
     val pendingDeleteMode by viewModel.pendingDeleteMode.collectAsState()
@@ -153,7 +155,10 @@ fun ModeListScreen(navController: NavController) {
             }
 
             if (modes.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
                         "No modes yet — tap + to create your first mode.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -162,6 +167,7 @@ fun ModeListScreen(navController: NavController) {
                 }
             } else {
                 LazyColumn(
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -175,6 +181,49 @@ fun ModeListScreen(navController: NavController) {
                         )
                     }
                 }
+            }
+            defaultMode?.let { mode ->
+                HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    "Default",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                DefaultModeItem(
+                    mode = mode,
+                    onClick = { navController.navigate("modeEditor?modeId=${mode.id}") },
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DefaultModeItem(
+    mode: Mode,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(mode.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Always active",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -245,14 +294,6 @@ private fun ModeListItem(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        if (mode.isDefault) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Default",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

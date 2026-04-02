@@ -19,7 +19,9 @@ class MeldApplication : Application() {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val database: MeldDatabase by lazy {
-        Room.databaseBuilder(this, MeldDatabase::class.java, "meld.db").build()
+        Room.databaseBuilder(this, MeldDatabase::class.java, "meld.db")
+            .addMigrations(MeldDatabase.MIGRATION_1_2)
+            .build()
     }
 
     /** Device-protected storage — accessible before user unlock (for BootReceiver). */
