@@ -282,13 +282,13 @@ private fun ModeListItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(mode.name, style = MaterialTheme.typography.titleMedium)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SuggestionChip(
-                            onClick = {},
-                            label = {
-                                Text(if (mode.type == ModeType.PRIMARY) "Primary" else "Secondary")
-                            },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        if (mode.type == ModeType.PRIMARY) {
+                            SuggestionChip(
+                                onClick = {},
+                                label = { Text("Exclusive") },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         Text(
                             "Priority ${mode.priority}",
                             style = MaterialTheme.typography.bodySmall,
