@@ -14,12 +14,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -29,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,9 +53,6 @@ import me.jhot.meld.data.model.LocationMode
 import me.jhot.meld.data.model.ModeSettings
 import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.data.model.RingerMode
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import me.jhot.meld.ui.components.NullableSegmentedButtonRow
 import me.jhot.meld.ui.components.SettingsSection
 import me.jhot.meld.ui.components.SliderRow
@@ -79,6 +80,8 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
     }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showExclusiveInfo by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
 
     // Back handler — show discard dialog if there are unsaved changes on an existing mode
     BackHandler(enabled = isDirty && !viewModel.isNew) {
@@ -100,6 +103,39 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                 TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
             },
         )
+    }
+
+    if (showExclusiveInfo) {
+        ModalBottomSheet(
+            onDismissRequest = { showExclusiveInfo = false },
+            sheetState = sheetState,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Exclusive modes",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { showExclusiveInfo = false }) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+            Text(
+                "When an Exclusive mode is active, only the highest-priority one takes effect — " +
+                    "all others are ignored. Shared modes always layer on top, ordered by priority.\n\n" +
+                    "Use Exclusive for contexts that fully define your setup (Work, Home, Sleep). " +
+                    "Use Shared for modifiers that apply alongside any context (Focus, Low Battery).",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp),
+            )
+        }
     }
 
     val settings = draft.settings
@@ -160,19 +196,25 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     )
 
-                    Text("Type", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(4.dp))
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = draft.type == ModeType.PRIMARY,
-                            onClick = { viewModel.updateType(ModeType.PRIMARY) },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        ) { Text("Primary") }
-                        SegmentedButton(
-                            selected = draft.type == ModeType.SECONDARY,
-                            onClick = { viewModel.updateType(ModeType.SECONDARY) },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        ) { Text("Secondary") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Exclusive",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { showExclusiveInfo = true }) {
+                            Icon(
+                                Icons.Outlined.HelpOutline,
+                                contentDescription = "What is Exclusive?",
+                            )
+                        }
+                        Switch(
+                            checked = draft.type == ModeType.PRIMARY,
+                            onCheckedChange = viewModel::updateExclusive,
+                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
