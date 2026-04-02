@@ -5,13 +5,13 @@ import me.jhot.meld.data.model.*
 object ModeResolver {
 
     fun resolve(allModes: List<Mode>, activeModeIds: Set<Long>): ModeSettings {
-        val activeModes = allModes.filter { it.id in activeModeIds }
+        val defaultSettings = allModes.find { it.type == ModeType.DEFAULT }?.settings ?: ModeSettings()
+
+        val activeModes = allModes.filter { it.type != ModeType.DEFAULT && it.id in activeModeIds }
         val activePrimaries = activeModes.filter { it.type == ModeType.PRIMARY }
 
-        // Winning primary: highest-priority active primary, or the default primary if none active.
-        // Tie on priority: maxByOrNull returns the last max in the list (highest id among equals).
+        // Winning primary: highest-priority active primary (ties broken by highest id).
         val winningPrimary = activePrimaries.maxByOrNull { it.priority }
-            ?: allModes.firstOrNull { it.type == ModeType.PRIMARY && it.isDefault }
 
         val workingSet: List<Mode> = if (winningPrimary != null) {
             val threshold = winningPrimary.priority
@@ -31,6 +31,6 @@ object ModeResolver {
                 .thenBy { it.id }
         )
 
-        return sorted.fold(ModeSettings()) { acc, mode -> acc.mergeWith(mode.settings) }
+        return sorted.fold(defaultSettings) { acc, mode -> acc.mergeWith(mode.settings) }
     }
 }
