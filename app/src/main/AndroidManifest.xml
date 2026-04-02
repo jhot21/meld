@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- WRITE_SETTINGS and WRITE_SECURE_SETTINGS are intentionally declared: the app
+         uses Shizuku to grant these at runtime on rooted/ADB-connected devices. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
@@ -43,9 +48,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- ShizukuService extends IShizukuService.Stub (AIDL binder), not android.app.Service.
+             It is launched via Shizuku.bindUserService, not the standard service lifecycle. -->
         <service
             android:name=".service.ShizukuService"
-            android:exported="false" />
+            android:exported="false"
+            tools:ignore="Instantiatable" />
 
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
