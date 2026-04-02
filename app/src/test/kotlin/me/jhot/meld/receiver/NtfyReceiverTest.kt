@@ -4,6 +4,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+/**
+ * Tests for [parseNtfyIntent] — the internal tag-parsing function extracted from [NtfyReceiver].
+ *
+ * Note: [NtfyReceiver.onReceive] itself (including message trimming and repository dispatch)
+ * is not covered here because it depends on Android framework classes (Intent, Context) that
+ * require instrumented tests. The parsing logic is the non-trivial part and is fully covered.
+ */
 class NtfyReceiverTest {
 
     @Test

@@ -185,15 +185,56 @@ fun GlobalSettingsScreen(navController: NavController) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(4.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // ntfy.sh placeholder
             Text("ntfy.sh Integration", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Coming in a future update.",
-                style = MaterialTheme.typography.bodySmall,
+                "Meld can receive ntfy messages to add or remove modes from your context automatically.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(8.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Setup", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "1. Install the ntfy app and subscribe to any topic.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        "2. In ntfy, go to Settings and enable \u201cBroadcast messages\u201d.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        "3. Send a message to your topic with:",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Column(modifier = Modifier.padding(start = 16.dp)) {
+                        Text(
+                            "\u2022 Message body: exact mode name (case-sensitive)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "\u2022 Tags must include: meld",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "\u2022 Tags must include one of: add, activate, active, on, enable, enabled, true, 1 \u2014 or their opposites to remove",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "4. Any topic works \u2014 Meld filters by tag, not topic.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
 
             Spacer(Modifier.height(32.dp))
         }
