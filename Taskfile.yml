@@ -50,3 +50,8 @@ tasks:
     desc: Clean build artifacts
     cmds:
       - ./gradlew clean
+  
+  send:debug:
+    desc: Use wormhole to send debug apk
+    cmds:
+      - wormhole send app/build/outputs/apk/debug/app-debug.apk 
