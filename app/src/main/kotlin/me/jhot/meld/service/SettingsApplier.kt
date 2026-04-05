@@ -180,12 +180,16 @@ class SettingsApplier(
 
         settings.keyboardVibration?.let { enabled ->
             val value = if (enabled) 1 else 0
-            if (Settings.System.getInt(resolver, KEY_KEYBOARD_VIBRATION, -1) != value) {
-                try {
+            try {
+                if (Settings.System.getInt(resolver, KEY_KEYBOARD_VIBRATION, -1) != value) {
                     Settings.System.putInt(resolver, KEY_KEYBOARD_VIBRATION, value)
-                } catch (e: IllegalArgumentException) {
-                    if (ShizukuGranter.hasPermission()) {
-                        applicationScope.launch {
+                }
+            } catch (e: Exception) {
+                if (ShizukuGranter.hasPermission()) {
+                    applicationScope.launch {
+                        // Re-check inside the coroutine so a queued write doesn't
+                        // clobber a value already applied by an earlier launch.
+                        if (Settings.System.getInt(resolver, KEY_KEYBOARD_VIBRATION, -1) != value) {
                             val ok = ShizukuGranter.putSetting(SettingNamespace.SYSTEM, KEY_KEYBOARD_VIBRATION, value)
                             if (!ok) Log.w(TAG, "Shizuku fallback for $KEY_KEYBOARD_VIBRATION failed")
                         }
@@ -209,17 +213,19 @@ class SettingsApplier(
         }
 
         settings.bluetooth?.let { enable ->
-            val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE)
-                    as? android.bluetooth.BluetoothManager)?.adapter
-            if (adapter == null || adapter.isEnabled != enable) {
-                if (ShizukuGranter.hasPermission()) {
-                    applicationScope.launch {
+            if (ShizukuGranter.hasPermission()) {
+                applicationScope.launch {
+                    // Check BT state inside the coroutine so a queued command doesn't
+                    // re-fire after an earlier launch already applied the change.
+                    val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE)
+                            as? android.bluetooth.BluetoothManager)?.adapter
+                    if (adapter == null || adapter.isEnabled != enable) {
                         val ok = ShizukuGranter.setBluetooth(enable)
                         if (!ok) Log.w(TAG, "Shizuku setBluetooth($enable) failed")
                     }
-                } else {
-                    Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
                 }
+            } else {
+                Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
             }
         }
     }

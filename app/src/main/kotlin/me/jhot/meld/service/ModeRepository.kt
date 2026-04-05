@@ -8,12 +8,16 @@ import me.jhot.meld.domain.ModeResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ModeRepository(
     private val modeDao: ModeDao,
     private val activeModeDao: ActiveModeDao,
     private val settingsApplier: SettingsApplier,
 ) {
+
+    private val applyLock = Mutex()
     /** Emits combined list of all modes with their current active state for UI observation. */
     val modesWithActiveState: Flow<List<Pair<Mode, Boolean>>> =
         combine(modeDao.getAll(), activeModeDao.getActiveModeIds()) { modes, activeIds ->
@@ -41,7 +45,7 @@ class ModeRepository(
         resolveAndApply()
     }
 
-    suspend fun resolveAndApply() {
+    suspend fun resolveAndApply() = applyLock.withLock {
         val (allModes, activeIds) = combine(
             modeDao.getAll(),
             activeModeDao.getActiveModeIds()
