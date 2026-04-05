@@ -65,7 +65,9 @@ class SettingsApplier(
 
     private fun setMediaVolume(volume: Int) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-        am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume) {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+        }
     }
 
     // ---- WRITE_SETTINGS settings --------------------------------------------
@@ -121,7 +123,7 @@ class SettingsApplier(
                 DndMode.ALARMS_ONLY -> NotificationManager.INTERRUPTION_FILTER_ALARMS
                 DndMode.TOTAL_SILENCE -> NotificationManager.INTERRUPTION_FILTER_NONE
             }
-            nm.setInterruptionFilter(filter)
+            if (nm.currentInterruptionFilter != filter) nm.setInterruptionFilter(filter)
         }
     }
 
