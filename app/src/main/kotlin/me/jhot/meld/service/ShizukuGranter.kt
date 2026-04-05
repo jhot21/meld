@@ -38,101 +38,74 @@ object ShizukuGranter {
      * Binds the Shizuku UserService, runs `pm grant WRITE_SECURE_SETTINGS`, then unbinds.
      * Must be called from a coroutine (suspends until the service responds).
      */
-    suspend fun grantSecureSettings(packageName: String): Boolean = lock.withLock {
-        runCatching {
-            withTimeout(SHIZUKU_TIMEOUT_MS) {
-                suspendCancellableCoroutine { cont ->
-                    val connection = object : ServiceConnection {
-                        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-                            val success = try {
-                                IShizukuService.Stub.asInterface(binder).grantSecureSettings(packageName)
-                                true
-                            } catch (e: Exception) {
-                                false
-                            }
-                            try { Shizuku.unbindUserService(serviceArgs, this, true) } catch (_: Exception) {}
-                            if (cont.isActive) cont.resume(success)
-                        }
-
-                        override fun onServiceDisconnected(name: ComponentName) {
-                            if (cont.isActive) cont.resume(false)
-                        }
-                    }
-                    try {
-                        Shizuku.bindUserService(serviceArgs, connection)
-                    } catch (e: Exception) {
-                        if (cont.isActive) cont.resume(false)
-                    }
-                }
-            }
-        }.getOrDefault(false)
-    }
+    suspend fun grantSecureSettings(packageName: String): Boolean =
+        withShizukuService { it.grantSecureSettings(packageName) }
 
     /**
      * Binds the Shizuku UserService, runs `cmd bluetooth_manager enable/disable`, then unbinds.
      * Must be called from a coroutine (suspends until the service responds).
      */
-    suspend fun setBluetooth(enable: Boolean): Boolean = lock.withLock {
-        runCatching {
-            withTimeout(SHIZUKU_TIMEOUT_MS) {
-                suspendCancellableCoroutine { cont ->
-                    val connection = object : ServiceConnection {
-                        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-                            val success = try {
-                                IShizukuService.Stub.asInterface(binder).setBluetooth(enable)
-                                true
-                            } catch (e: Exception) {
-                                false
-                            }
-                            try { Shizuku.unbindUserService(serviceArgs, this, true) } catch (_: Exception) {}
-                            if (cont.isActive) cont.resume(success)
-                        }
-
-                        override fun onServiceDisconnected(name: ComponentName) {
-                            if (cont.isActive) cont.resume(false)
-                        }
-                    }
-                    try {
-                        Shizuku.bindUserService(serviceArgs, connection)
-                    } catch (e: Exception) {
-                        if (cont.isActive) cont.resume(false)
-                    }
-                }
-            }
-        }.getOrDefault(false)
-    }
+    suspend fun setBluetooth(enable: Boolean): Boolean =
+        withShizukuService { it.setBluetooth(enable) }
 
     /**
      * Binds the Shizuku UserService, runs `settings put <namespace> <key> <value>`, then unbinds.
      * Must be called from a coroutine (suspends until the service responds).
      */
-    suspend fun putSetting(namespace: SettingNamespace, key: String, value: Int): Boolean = lock.withLock {
-        runCatching {
-            withTimeout(SHIZUKU_TIMEOUT_MS) {
-                suspendCancellableCoroutine { cont ->
-                    val connection = object : ServiceConnection {
-                        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-                            val success = try {
-                                IShizukuService.Stub.asInterface(binder).putSetting(namespace.value, key, value)
-                                true
-                            } catch (e: Exception) {
-                                false
-                            }
-                            try { Shizuku.unbindUserService(serviceArgs, this, true) } catch (_: Exception) {}
-                            if (cont.isActive) cont.resume(success)
-                        }
+    suspend fun putSetting(namespace: SettingNamespace, key: String, value: Int): Boolean =
+        withShizukuService { it.putSetting(namespace.value, key, value) }
 
-                        override fun onServiceDisconnected(name: ComponentName) {
+    /**
+     * Acquires the lock, binds the Shizuku UserService, runs [block], then unbinds.
+     *
+     * Unbind is intentionally deferred until after the coroutine resumes — never called from
+     * inside onServiceConnected — to avoid ConcurrentModificationException in Shizuku's
+     * internal connection iterator. invokeOnCancellation handles cleanup on timeout so
+     * orphaned ServiceConnection registrations don't accumulate across calls.
+     */
+    private suspend fun withShizukuService(block: (IShizukuService) -> Unit): Boolean =
+        lock.withLock {
+            var connection: ServiceConnection? = null
+            val result = runCatching {
+                withTimeout(SHIZUKU_TIMEOUT_MS) {
+                    suspendCancellableCoroutine { cont ->
+                        val conn = object : ServiceConnection {
+                            override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                                val success = try {
+                                    block(IShizukuService.Stub.asInterface(binder))
+                                    true
+                                } catch (e: Exception) {
+                                    false
+                                }
+                                // Do NOT call unbindUserService here: Shizuku is currently
+                                // iterating its connection map to deliver this callback, and
+                                // modifying the map mid-iteration causes ConcurrentModificationException.
+                                // Unbind happens below, after the coroutine resumes.
+                                if (cont.isActive) cont.resume(success)
+                            }
+
+                            override fun onServiceDisconnected(name: ComponentName) {
+                                if (cont.isActive) cont.resume(false)
+                            }
+                        }
+                        connection = conn
+                        // Clean up on timeout/cancellation so the ServiceConnection doesn't
+                        // accumulate in Shizuku's map and cause CME on the next bind.
+                        cont.invokeOnCancellation {
+                            try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
+                        }
+                        try {
+                            Shizuku.bindUserService(serviceArgs, conn)
+                        } catch (e: Exception) {
                             if (cont.isActive) cont.resume(false)
                         }
                     }
-                    try {
-                        Shizuku.bindUserService(serviceArgs, connection)
-                    } catch (e: Exception) {
-                        if (cont.isActive) cont.resume(false)
-                    }
                 }
             }
-        }.getOrDefault(false)
-    }
+            // Unbind after the coroutine has fully resumed, outside the callback stack.
+            connection?.let {
+                try { Shizuku.unbindUserService(serviceArgs, it, true) } catch (_: Exception) {}
+            }
+            result.getOrDefault(false)
+        }
 }
