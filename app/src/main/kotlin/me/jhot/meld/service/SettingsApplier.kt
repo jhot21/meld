@@ -110,6 +110,10 @@ class SettingsApplier(
         settings.screenRotation?.let {
             resolver.putSystemIntIfChanged(Settings.System.ACCELEROMETER_ROTATION, if (it) 1 else 0)
         }
+
+        settings.hapticFeedback?.let {
+            resolver.putSystemIntIfChanged(Settings.System.HAPTIC_FEEDBACK_ENABLED, if (it) 1 else 0)
+        }
     }
 
     // ---- ACCESS_NOTIFICATION_POLICY -----------------------------------------
@@ -160,10 +164,6 @@ class SettingsApplier(
             if (it && Settings.Secure.getInt(resolver, "accessibility_display_daltonizer", -1) != 0) {
                 Settings.Secure.putInt(resolver, "accessibility_display_daltonizer", 0)
             }
-        }
-
-        settings.hapticFeedback?.let {
-            resolver.putSystemIntIfChanged(Settings.System.HAPTIC_FEEDBACK_ENABLED, if (it) 1 else 0)
         }
 
         settings.keyboardVibration?.let { enabled ->
@@ -233,6 +233,8 @@ class SettingsApplier(
     }
 
     private fun ContentResolver.putGlobalStringIfChanged(key: String, value: String) {
+        // getString returns null for unset keys; null != any non-null value, so a
+        // missing key always triggers the write — which is the correct behaviour.
         if (Settings.Global.getString(this, key) != value) {
             Settings.Global.putString(this, key, value)
         }
