@@ -144,8 +144,20 @@ class SettingsApplier(
             resolver.putSecureIntIfChanged("night_display_activated", if (it) 1 else 0)
         }
 
-        settings.extraDim?.let {
-            resolver.putSecureIntIfChanged("reduce_bright_colors_activated", if (it) 1 else 0)
+        settings.extraDim?.let { enable ->
+            // reduce_bright_colors_activated is restricted to system apps on Android 12+;
+            // direct read/write via Settings.Secure will fail — fall back to Shizuku.
+            val value = if (enable) 1 else 0
+            try {
+                Settings.Secure.putInt(resolver, "reduce_bright_colors_activated", value)
+            } catch (e: SecurityException) {
+                if (ShizukuGranter.hasPermission()) {
+                    applicationScope.launch {
+                        val ok = ShizukuGranter.putSetting(SettingNamespace.SECURE, "reduce_bright_colors_activated", value)
+                        if (!ok) Log.w(TAG, "Shizuku fallback for reduce_bright_colors_activated failed")
+                    }
+                }
+            }
         }
 
         settings.immersiveMode?.let {
