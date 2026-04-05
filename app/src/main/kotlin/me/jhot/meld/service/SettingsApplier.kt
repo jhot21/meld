@@ -2,6 +2,7 @@ package me.jhot.meld.service
 
 import android.app.NotificationManager
 import android.content.Context
+import android.content.ContentResolver
 import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
@@ -74,7 +75,9 @@ class SettingsApplier(
         val resolver = context.contentResolver
 
         settings.volumeNotification?.let {
-            am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, it, 0)
+            if (am.getStreamVolume(AudioManager.STREAM_NOTIFICATION) != it) {
+                am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, it, 0)
+            }
         }
 
         settings.ringerMode?.let {
@@ -83,28 +86,27 @@ class SettingsApplier(
                 RingerMode.VIBRATE -> AudioManager.RINGER_MODE_VIBRATE
                 RingerMode.SOUND -> AudioManager.RINGER_MODE_NORMAL
             }
-            am.ringerMode = mode
+            if (am.ringerMode != mode) am.ringerMode = mode
         }
 
         settings.brightnessAuto?.let { auto ->
             val value = if (auto) Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
                         else Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
-            Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, value)
+            resolver.putSystemIntIfChanged(Settings.System.SCREEN_BRIGHTNESS_MODE, value)
         }
 
         if (settings.brightnessAuto != true) {
             settings.brightness?.let {
-                Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS, it.coerceIn(0, 255))
+                resolver.putSystemIntIfChanged(Settings.System.SCREEN_BRIGHTNESS, it.coerceIn(0, 255))
             }
         }
 
         settings.displayTimeout?.let {
-            Settings.System.putInt(resolver, Settings.System.SCREEN_OFF_TIMEOUT, it * 60 * 1000)
+            resolver.putSystemIntIfChanged(Settings.System.SCREEN_OFF_TIMEOUT, it * 60 * 1000)
         }
 
         settings.screenRotation?.let {
-            val value = if (it) 1 else 0
-            Settings.System.putInt(resolver, Settings.System.ACCELEROMETER_ROTATION, value)
+            resolver.putSystemIntIfChanged(Settings.System.ACCELEROMETER_ROTATION, if (it) 1 else 0)
         }
     }
 
@@ -198,6 +200,32 @@ class SettingsApplier(
             } else {
                 Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
             }
+        }
+    }
+
+    // ---- ContentResolver helpers -------------------------------------------
+
+    private fun ContentResolver.putSystemIntIfChanged(key: String, value: Int) {
+        if (Settings.System.getInt(this, key, -1) != value) {
+            Settings.System.putInt(this, key, value)
+        }
+    }
+
+    private fun ContentResolver.putSecureIntIfChanged(key: String, value: Int) {
+        if (Settings.Secure.getInt(this, key, -1) != value) {
+            Settings.Secure.putInt(this, key, value)
+        }
+    }
+
+    private fun ContentResolver.putGlobalIntIfChanged(key: String, value: Int) {
+        if (Settings.Global.getInt(this, key, -1) != value) {
+            Settings.Global.putInt(this, key, value)
+        }
+    }
+
+    private fun ContentResolver.putGlobalStringIfChanged(key: String, value: String) {
+        if (Settings.Global.getString(this, key) != value) {
+            Settings.Global.putString(this, key, value)
         }
     }
 }
