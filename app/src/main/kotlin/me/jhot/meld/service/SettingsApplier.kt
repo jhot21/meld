@@ -133,17 +133,15 @@ class SettingsApplier(
         val resolver = context.contentResolver
 
         settings.darkMode?.let {
-            // 1 = light, 2 = night/dark
-            Settings.Secure.putInt(resolver, "ui_night_mode", if (it) 2 else 1)
+            resolver.putSecureIntIfChanged("ui_night_mode", if (it) 2 else 1)
         }
 
         settings.nightLight?.let {
-            Settings.Secure.putInt(resolver, "night_display_activated", if (it) 1 else 0)
+            resolver.putSecureIntIfChanged("night_display_activated", if (it) 1 else 0)
         }
 
         settings.extraDim?.let {
-            // Android 12+ (API 31+) — reduce_bright_colors_activated
-            Settings.Secure.putInt(resolver, "reduce_bright_colors_activated", if (it) 1 else 0)
+            resolver.putSecureIntIfChanged("reduce_bright_colors_activated", if (it) 1 else 0)
         }
 
         settings.immersiveMode?.let {
@@ -153,34 +151,39 @@ class SettingsApplier(
                 ImmersiveMode.NAV_BAR -> "immersive.navigation=*"
                 ImmersiveMode.BOTH -> "immersive.full=*"
             }
-            Settings.Global.putString(resolver, "policy_control", value)
+            resolver.putGlobalStringIfChanged("policy_control", value)
         }
 
         settings.grayscale?.let {
-            Settings.Secure.putInt(resolver, "accessibility_display_daltonizer_enabled", if (it) 1 else 0)
-            if (it) Settings.Secure.putInt(resolver, "accessibility_display_daltonizer", 0)
+            val enabledValue = if (it) 1 else 0
+            resolver.putSecureIntIfChanged("accessibility_display_daltonizer_enabled", enabledValue)
+            if (it && Settings.Secure.getInt(resolver, "accessibility_display_daltonizer", -1) != 0) {
+                Settings.Secure.putInt(resolver, "accessibility_display_daltonizer", 0)
+            }
         }
 
         settings.hapticFeedback?.let {
-            Settings.System.putInt(resolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, if (it) 1 else 0)
+            resolver.putSystemIntIfChanged(Settings.System.HAPTIC_FEEDBACK_ENABLED, if (it) 1 else 0)
         }
 
         settings.keyboardVibration?.let { enabled ->
             val value = if (enabled) 1 else 0
-            try {
-                Settings.System.putInt(resolver, KEY_KEYBOARD_VIBRATION, value)
-            } catch (e: IllegalArgumentException) {
-                if (ShizukuGranter.hasPermission()) {
-                    applicationScope.launch {
-                        val ok = ShizukuGranter.putSetting(SettingNamespace.SYSTEM, KEY_KEYBOARD_VIBRATION, value)
-                        if (!ok) Log.w(TAG, "Shizuku fallback for $KEY_KEYBOARD_VIBRATION failed")
+            if (Settings.System.getInt(resolver, KEY_KEYBOARD_VIBRATION, -1) != value) {
+                try {
+                    Settings.System.putInt(resolver, KEY_KEYBOARD_VIBRATION, value)
+                } catch (e: IllegalArgumentException) {
+                    if (ShizukuGranter.hasPermission()) {
+                        applicationScope.launch {
+                            val ok = ShizukuGranter.putSetting(SettingNamespace.SYSTEM, KEY_KEYBOARD_VIBRATION, value)
+                            if (!ok) Log.w(TAG, "Shizuku fallback for $KEY_KEYBOARD_VIBRATION failed")
+                        }
                     }
                 }
             }
         }
 
         settings.batterySaver?.let {
-            Settings.Global.putInt(resolver, "low_power", if (it) 1 else 0)
+            resolver.putGlobalIntIfChanged("low_power", if (it) 1 else 0)
         }
 
         settings.locationMode?.let {
@@ -190,17 +193,21 @@ class SettingsApplier(
                 LocationMode.DEVICE_ONLY -> 1
                 LocationMode.HIGH_ACCURACY -> 3
             }
-            Settings.Secure.putInt(resolver, "location_mode", value)
+            resolver.putSecureIntIfChanged("location_mode", value)
         }
 
         settings.bluetooth?.let { enable ->
-            if (ShizukuGranter.hasPermission()) {
-                applicationScope.launch {
-                    val ok = ShizukuGranter.setBluetooth(enable)
-                    if (!ok) Log.w(TAG, "Shizuku setBluetooth($enable) failed")
+            val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE)
+                    as? android.bluetooth.BluetoothManager)?.adapter
+            if (adapter == null || adapter.isEnabled != enable) {
+                if (ShizukuGranter.hasPermission()) {
+                    applicationScope.launch {
+                        val ok = ShizukuGranter.setBluetooth(enable)
+                        if (!ok) Log.w(TAG, "Shizuku setBluetooth($enable) failed")
+                    }
+                } else {
+                    Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
                 }
-            } else {
-                Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
             }
         }
     }
