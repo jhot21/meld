@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -46,6 +50,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import me.jhot.meld.service.ImportResult
 import me.jhot.meld.ui.globalSettings.ShizukuState
 
 private const val ADB_COMMAND =
@@ -62,6 +67,20 @@ fun GlobalSettingsScreen(navController: NavController) {
     val shizukuState by viewModel.shizukuState.collectAsState()
 
     val context = LocalContext.current
+
+    val importResult by viewModel.importResult.collectAsState()
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onImportFilePicked(it) }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.exportIntent.collect { intent ->
+            context.startActivity(Intent.createChooser(intent, null))
+        }
+    }
 
     // Refresh whenever this screen resumes — covers both initial load and return from system settings
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -177,13 +196,21 @@ fun GlobalSettingsScreen(navController: NavController) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // Import / Export placeholder
             Text("Import / Export", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Coming in a future update.",
+                "Export all modes to a file or import from a previously exported file.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { viewModel.onExportClicked() }) {
+                    Text("Export")
+                }
+                OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "application/json")) }) {
+                    Text("Import")
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -238,6 +265,56 @@ fun GlobalSettingsScreen(navController: NavController) {
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    // Conflict confirmation dialog
+    if (importResult is ImportResult.ConflictsDetected) {
+        val conflicts = (importResult as ImportResult.ConflictsDetected).conflictingNames
+        AlertDialog(
+            onDismissRequest = { viewModel.onImportCancelled() },
+            title = { Text("Overwrite existing modes?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("The following modes already exist and will be overwritten:")
+                    conflicts.forEach { name ->
+                        Text(
+                            "• $name",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.onImportConfirmed() }) {
+                    Text("Overwrite")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onImportCancelled() }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    // Error dialogs
+    val errorMessage = when (importResult) {
+        is ImportResult.MalformedJson -> "The selected file is not a valid Meld export."
+        is ImportResult.UnsupportedVersion -> "This export was created with a newer version of Meld. Please update the app and try again."
+        else -> null
+    }
+    if (errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onImportCancelled() },
+            title = { Text("Import failed") },
+            text = { Text(errorMessage) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onImportCancelled() }) {
+                    Text("OK")
+                }
+            },
+        )
     }
 }
 

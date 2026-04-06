@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import me.jhot.meld.data.db.ActiveDatabase
 import me.jhot.meld.data.db.MeldDatabase
 import me.jhot.meld.receiver.NtfyReceiver
+import me.jhot.meld.service.ImportExportService
 import me.jhot.meld.service.MeldForegroundService
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.OverrideSessionStore
@@ -53,6 +54,10 @@ class MeldApplication : Application() {
             activeModeDao = activeDatabase.activeModeDao(),
             settingsApplier = settingsApplier,
         )
+    }
+
+    val importExportService: ImportExportService by lazy {
+        ImportExportService(database.modeDao(), this)
     }
 
     override fun onCreate() {
