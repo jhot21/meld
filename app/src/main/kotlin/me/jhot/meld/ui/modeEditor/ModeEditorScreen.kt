@@ -251,7 +251,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                     value = settings.volumeMedia,
                     onValueChange = { updateSettings { copy(volumeMedia = it) } },
                     min = 0,
-                    max = 15,
+                    max = viewModel.maxMediaVolume,
                     valueLabel = { it.toString() },
                 )
                 Spacer(Modifier.height(8.dp))

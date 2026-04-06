@@ -52,6 +52,14 @@ object ShizukuGranter {
         withShizukuService { it.setBluetooth(enable) }
 
     /**
+     * Binds the Shizuku UserService, calls AudioSystem.setStreamVolumeIndex via reflection
+     * to set STREAM_MUSIC volume below AudioService's Java-layer safe volume check, then unbinds.
+     * Must be called from a coroutine (suspends until the service responds).
+     */
+    suspend fun setMediaVolumeDirect(volume: Int): Boolean =
+        withShizukuService { it.setMediaVolumeDirect(volume) }
+
+    /**
      * Binds the Shizuku UserService, runs `settings put <namespace> <key> <value>`, then unbinds.
      * Must be called from a coroutine (suspends until the service responds).
      */

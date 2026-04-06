@@ -68,6 +68,18 @@ class SettingsApplier(
         if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume) {
             am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
         }
+        // AudioService enforces safe media volume entirely in its Java layer — writing
+        // audio_safe_volume_state to global settings has no runtime effect (AudioService
+        // registers no ContentObserver on that key). The only reliable bypass is to call
+        // AudioSystem.setStreamVolumeIndex() directly, which routes to AudioPolicyService
+        // (native) — that layer has no safe volume check at all.
+        // We do this via Shizuku whenever setting to the device maximum.
+        if (volume == am.getStreamMaxVolume(AudioManager.STREAM_MUSIC) && ShizukuGranter.hasPermission()) {
+            applicationScope.launch {
+                val ok = ShizukuGranter.setMediaVolumeDirect(volume)
+                if (!ok) Log.w(TAG, "Shizuku setMediaVolumeDirect($volume) failed")
+            }
+        }
     }
 
     // ---- WRITE_SETTINGS settings --------------------------------------------
@@ -219,7 +231,20 @@ class SettingsApplier(
                     // re-fire after an earlier launch already applied the change.
                     val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE)
                             as? android.bluetooth.BluetoothManager)?.adapter
-                    if (adapter == null || adapter.isEnabled != enable) {
+                    // Use getState() rather than isEnabled() so we correctly handle
+                    // transitional states. isEnabled() returns false for both STATE_OFF and
+                    // STATE_TURNING_ON — meaning if BT is mid-transition to ON and we want
+                    // OFF, isEnabled() == false == enable, and we'd incorrectly skip the
+                    // disable command, leaving BT on.
+                    val btState = adapter?.state ?: android.bluetooth.BluetoothAdapter.STATE_OFF
+                    val alreadyAtTarget = if (enable) {
+                        btState == android.bluetooth.BluetoothAdapter.STATE_ON ||
+                            btState == android.bluetooth.BluetoothAdapter.STATE_TURNING_ON
+                    } else {
+                        btState == android.bluetooth.BluetoothAdapter.STATE_OFF ||
+                            btState == android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF
+                    }
+                    if (!alreadyAtTarget) {
                         val ok = ShizukuGranter.setBluetooth(enable)
                         if (!ok) Log.w(TAG, "Shizuku setBluetooth($enable) failed")
                     }

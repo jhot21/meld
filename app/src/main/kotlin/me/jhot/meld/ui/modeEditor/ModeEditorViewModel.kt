@@ -1,5 +1,7 @@
 package me.jhot.meld.ui.modeEditor
 
+import android.content.Context
+import android.media.AudioManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -26,6 +28,7 @@ import kotlinx.coroutines.launch
 class ModeEditorViewModel(
     private val repository: ModeRepository,
     private val permissionChecker: PermissionChecker,
+    val maxMediaVolume: Int,
 ) : ViewModel() {
 
     private val _draft = MutableStateFlow(
@@ -106,7 +109,8 @@ class ModeEditorViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(get(APPLICATION_KEY)) as MeldApplication
-                ModeEditorViewModel(app.modeRepository, app.permissionChecker)
+                val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                ModeEditorViewModel(app.modeRepository, app.permissionChecker, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
             }
         }
     }
