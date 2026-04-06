@@ -14,6 +14,7 @@ includes:
 
 tasks:
   sync-build-gradle:
+    internal: true
     desc: Ensure app/build.gradle.kts reads version numbers from gradle.properties
     status:
       - grep -q 'findProperty("VERSION_CODE")' app/build.gradle.kts
@@ -30,11 +31,12 @@ tasks:
         msg: "Version name required. Usage: task set-version -- <version-name>"
     vars:
       CURRENT_CODE:
-        sh: grep "^VERSION_CODE=" gradle.properties | cut -d= -f2
+        sh: grep "^VERSION_CODE=" gradle.properties 2>/dev/null | cut -d= -f2
       NEW_CODE:
         sh: 'echo $(( {{.CURRENT_CODE | default "0"}} + 1 ))'
     cmds:
-      - grep -v "^VERSION_CODE=" gradle.properties > gradle.properties.tmp
+      - touch gradle.properties
+      - grep -v "^VERSION_CODE=" gradle.properties > gradle.properties.tmp || true
       - echo "VERSION_CODE={{.NEW_CODE}}" >> gradle.properties.tmp
       - grep -v "^VERSION_NAME=" gradle.properties.tmp > gradle.properties.tmp2
       - echo "VERSION_NAME={{.CLI_ARGS}}" >> gradle.properties.tmp2
