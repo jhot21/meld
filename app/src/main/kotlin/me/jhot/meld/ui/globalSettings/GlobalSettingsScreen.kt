@@ -40,6 +40,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -69,6 +72,20 @@ fun GlobalSettingsScreen(navController: NavController) {
 
     val importResult by viewModel.importResult.collectAsState()
 
+    var pendingExportJson by remember { mutableStateOf<String?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            val json = pendingExportJson ?: return@let
+            context.contentResolver.openOutputStream(it)?.use { stream ->
+                stream.write(json.toByteArray())
+            }
+            pendingExportJson = null
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -76,8 +93,9 @@ fun GlobalSettingsScreen(navController: NavController) {
     }
 
     LaunchedEffect(Unit) {
-        viewModel.exportIntent.collect { intent ->
-            context.startActivity(Intent.createChooser(intent, null))
+        viewModel.exportReady.collect { (fileName, json) ->
+            pendingExportJson = json
+            exportLauncher.launch(fileName)
         }
     }
 

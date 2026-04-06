@@ -1,6 +1,5 @@
 package me.jhot.meld.ui.globalSettings
 
-import android.content.Intent
 import android.net.Uri
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -27,7 +26,6 @@ import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.PermissionChecker
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -72,22 +70,21 @@ class GlobalSettingsViewModelImportExportTest {
     }
 
     @Test
-    fun onExportClicked_emitsShareIntent() = runTest(testDispatcher) {
+    fun onExportClicked_emitsFileNameAndJson() = runTest(testDispatcher) {
+        val json = """{"exportVersion":1,"exportedAt":0,"modes":[]}"""
         val svc = mockk<ImportExportService> {
-            coEvery { export() } returns """{"exportVersion":1,"exportedAt":0,"modes":[]}"""
+            coEvery { export() } returns json
             every { exportFileName() } returns "meld-export-2026-04-06.json"
         }
         val vm = viewModel(importExportService = svc)
 
-        var emittedIntent: Intent? = null
-        val job = launch { vm.exportIntent.collect { emittedIntent = it } }
+        var emitted: Pair<String, String>? = null
+        val job = launch { vm.exportReady.collect { emitted = it } }
 
         vm.onExportClicked()
 
         job.cancel()
-        // Verify an intent was emitted. Checking .action is unreliable under Android JVM stubs
-        // (getAction() returns null stub default). The ViewModel code explicitly sets ACTION_SEND.
-        assertNotNull(emittedIntent)
+        assertEquals("meld-export-2026-04-06.json" to json, emitted)
     }
 
     @Test

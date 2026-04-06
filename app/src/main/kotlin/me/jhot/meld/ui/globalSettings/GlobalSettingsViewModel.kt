@@ -1,6 +1,5 @@
 package me.jhot.meld.ui.globalSettings
 
-import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -54,8 +53,8 @@ class GlobalSettingsViewModel(
     private val _importResult = MutableStateFlow<ImportResult?>(null)
     val importResult: StateFlow<ImportResult?> = _importResult.asStateFlow()
 
-    private val _exportIntent = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
-    val exportIntent: SharedFlow<Intent> = _exportIntent.asSharedFlow()
+    private val _exportReady = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
+    val exportReady: SharedFlow<Pair<String, String>> = _exportReady.asSharedFlow()
 
     private val shizukuPermissionListener =
         rikka.shizuku.Shizuku.OnRequestPermissionResultListener { _, result ->
@@ -100,12 +99,8 @@ class GlobalSettingsViewModel(
     fun onExportClicked() {
         viewModelScope.launch {
             val json = importExportService.export()
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, json)
-                putExtra(Intent.EXTRA_SUBJECT, importExportService.exportFileName())
-            }
-            _exportIntent.emit(intent)  // emit raw intent, not wrapped in createChooser
+            val fileName = importExportService.exportFileName()
+            _exportReady.emit(fileName to json)
         }
     }
 
