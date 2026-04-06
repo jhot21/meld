@@ -127,6 +127,12 @@ fun GlobalSettingsScreen(navController: NavController) {
         }
     }
 
+    LaunchedEffect(importResult) {
+        if (importResult is ImportResult.Ready) {
+            viewModel.onImportConfirmed()
+        }
+    }
+
     // Refresh whenever this screen resumes — covers both initial load and return from system settings
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
