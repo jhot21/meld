@@ -51,7 +51,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import me.jhot.meld.service.ImportResult
-import me.jhot.meld.ui.globalSettings.ShizukuState
 
 private const val ADB_COMMAND =
     "adb shell pm grant me.jhot.meld android.permission.WRITE_SECURE_SETTINGS"
