@@ -1,5 +1,7 @@
 package me.jhot.meld.ui.globalSettings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -7,11 +9,19 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.jhot.meld.MeldApplication
+import me.jhot.meld.data.model.Mode
+import me.jhot.meld.service.ImportExportService
+import me.jhot.meld.service.ImportResult
+import me.jhot.meld.service.ModeExport
+import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.PermissionChecker
 import me.jhot.meld.service.ShizukuGranter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,6 +35,8 @@ sealed interface ShizukuState {
 class GlobalSettingsViewModel(
     private val permissionChecker: PermissionChecker,
     private val packageName: String,
+    private val importExportService: ImportExportService,
+    private val modeRepository: ModeRepository,
 ) : ViewModel() {
 
     private val _writeSettingsGranted = MutableStateFlow(false)
@@ -38,6 +50,12 @@ class GlobalSettingsViewModel(
 
     private val _shizukuState = MutableStateFlow<ShizukuState>(ShizukuState.Unavailable)
     val shizukuState: StateFlow<ShizukuState> = _shizukuState.asStateFlow()
+
+    private val _importResult = MutableStateFlow<ImportResult?>(null)
+    val importResult: StateFlow<ImportResult?> = _importResult.asStateFlow()
+
+    private val _exportIntent = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
+    val exportIntent: SharedFlow<Intent> = _exportIntent.asSharedFlow()
 
     private val shizukuPermissionListener =
         rikka.shizuku.Shizuku.OnRequestPermissionResultListener { _, result ->
@@ -79,13 +97,61 @@ class GlobalSettingsViewModel(
         }
     }
 
+    fun onExportClicked() {
+        viewModelScope.launch {
+            val json = importExportService.export()
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, json)
+                putExtra(Intent.EXTRA_SUBJECT, importExportService.exportFileName())
+            }
+            _exportIntent.emit(intent)  // emit raw intent, not wrapped in createChooser
+        }
+    }
+
+    fun onImportFilePicked(uri: Uri) {
+        viewModelScope.launch {
+            _importResult.value = importExportService.parseImport(uri)
+        }
+    }
+
+    fun onImportConfirmed() {
+        val result = _importResult.value
+        val exportedModes: List<ModeExport> = when (result) {
+            is ImportResult.ConflictsDetected -> result.modes
+            is ImportResult.Ready -> result.modes
+            else -> return
+        }
+        viewModelScope.launch {
+            val modeEntities = exportedModes.map { export ->
+                Mode(
+                    name = export.name,
+                    type = export.type,
+                    priority = export.priority,
+                    settings = export.settings,
+                )
+            }
+            modeRepository.importModes(modeEntities)
+            _importResult.value = null
+        }
+    }
+
+    fun onImportCancelled() {
+        _importResult.value = null
+    }
+
     companion object {
         private const val SHIZUKU_REQUEST_CODE = 1001
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(get(APPLICATION_KEY)) as MeldApplication
-                GlobalSettingsViewModel(app.permissionChecker, app.packageName)
+                GlobalSettingsViewModel(
+                    permissionChecker = app.permissionChecker,
+                    packageName = app.packageName,
+                    importExportService = TODO("wired in Task 5"),
+                    modeRepository = app.modeRepository,
+                )
             }
         }
     }
