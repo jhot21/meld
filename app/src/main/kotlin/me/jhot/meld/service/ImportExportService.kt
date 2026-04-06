@@ -37,16 +37,16 @@ class ImportExportService(
 ) {
     private val gson = Gson()
 
+    private fun Mode.toModeExport() = ModeExport(
+        name = name,
+        type = type,
+        priority = priority,
+        settings = settings,
+    )
+
     suspend fun export(): String {
         val modes = modeDao.getAll().first()
-        val exports = modes.map { mode ->
-            ModeExport(
-                name = mode.name,
-                type = mode.type,
-                priority = mode.priority,
-                settings = mode.settings,
-            )
-        }
+        val exports = modes.map { it.toModeExport() }
         val systemExport = SystemExport(
             exportVersion = CURRENT_EXPORT_VERSION,
             exportedAt = System.currentTimeMillis(),
@@ -90,16 +90,10 @@ class ImportExportService(
     fun exportFileName(): String = "meld-export-${LocalDate.now()}.json"
 
     fun exportSingleMode(mode: Mode): String {
-        val modeExport = ModeExport(
-            name = mode.name,
-            type = mode.type,
-            priority = mode.priority,
-            settings = mode.settings,
-        )
         val systemExport = SystemExport(
             exportVersion = CURRENT_EXPORT_VERSION,
             exportedAt = System.currentTimeMillis(),
-            modes = listOf(modeExport),
+            modes = listOf(mode.toModeExport()),
         )
         return gson.toJson(systemExport)
     }
