@@ -30,4 +30,13 @@ interface ModeDao {
         check(mode.type != ModeType.DEFAULT) { "Cannot delete the DEFAULT mode" }
         delete(mode)
     }
+
+    @Transaction
+    suspend fun replaceByName(modes: List<Mode>) {
+        for (mode in modes) {
+            // insert has OnConflictStrategy.REPLACE — a unique-name collision deletes the
+            // existing row and inserts a fresh one with a new auto-generated id.
+            insert(mode)
+        }
+    }
 }
