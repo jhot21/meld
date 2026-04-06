@@ -137,7 +137,9 @@ class GlobalSettingsViewModelImportExportTest {
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.Ready(importedModes)
         }
-        val repo = mockk<ModeRepository>(relaxed = true)
+        val repo = mockk<ModeRepository>(relaxed = true) {
+            every { getAllModes() } returns flowOf(emptyList())
+        }
         val vm = viewModel(importExportService = svc, modeRepository = repo)
 
         vm.onImportFilePicked(mockk<Uri>())  // sets importResult to Ready
@@ -157,7 +159,9 @@ class GlobalSettingsViewModelImportExportTest {
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.ConflictsDetected(importedModes, listOf("Work"))
         }
-        val repo = mockk<ModeRepository>(relaxed = true)
+        val repo = mockk<ModeRepository>(relaxed = true) {
+            every { getAllModes() } returns flowOf(emptyList())
+        }
         val vm = viewModel(importExportService = svc, modeRepository = repo)
 
         vm.onImportFilePicked(mockk<Uri>())  // sets importResult to ConflictsDetected

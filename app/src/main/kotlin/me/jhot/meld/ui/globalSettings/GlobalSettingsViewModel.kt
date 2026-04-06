@@ -58,11 +58,11 @@ class GlobalSettingsViewModel(
     private val _exportReady = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
     val exportReady: SharedFlow<Pair<String, String>> = _exportReady.asSharedFlow()
 
-    val allModes: StateFlow<List<Mode>> = modeRepository.getAllModes()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
     private val _singleModeExportReady = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
     val singleModeExportReady: SharedFlow<Pair<String, String>> = _singleModeExportReady.asSharedFlow()
+
+    val allModes: StateFlow<List<Mode>> = modeRepository.getAllModes()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val shizukuPermissionListener =
         rikka.shizuku.Shizuku.OnRequestPermissionResultListener { _, result ->
