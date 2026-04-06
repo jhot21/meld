@@ -25,6 +25,9 @@ tasks:
   set-version:
     desc: "Set app version (usage: task set-version -- <version-name>)"
     deps: [sync-build-gradle]
+    preconditions:
+      - sh: test -n "{{.CLI_ARGS}}"
+        msg: "Version name required. Usage: task set-version -- <version-name>"
     vars:
       CURRENT_CODE:
         sh: grep "^VERSION_CODE=" gradle.properties | cut -d= -f2
