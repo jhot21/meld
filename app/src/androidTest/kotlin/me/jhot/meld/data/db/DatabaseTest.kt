@@ -142,8 +142,12 @@ class DatabaseTest {
         dao.replaceByName(modes)
         val all = dao.getAll().first()
         assertEquals(2, all.size)
-        assertTrue(all.any { it.name == "Work" })
-        assertTrue(all.any { it.name == "Home" })
+        val work = all.find { it.name == "Work" }!!
+        assertEquals(ModeType.PRIMARY, work.type)
+        assertEquals(50, work.priority)
+        val home = all.find { it.name == "Home" }!!
+        assertEquals(ModeType.SECONDARY, home.type)
+        assertEquals(30, home.priority)
     }
 
     @Test
