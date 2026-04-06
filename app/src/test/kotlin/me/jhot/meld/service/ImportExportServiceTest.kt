@@ -134,6 +134,13 @@ class ImportExportServiceTest {
     }
 
     @Test
+    fun parseImport_returnsMalformedJson_whenModesFieldAbsent() = runTest {
+        // Gson leaves non-null Kotlin fields null when absent — must not crash.
+        val result = serviceWithJson(json = """{"exportVersion":1,"exportedAt":0}""").parseImport(fakeUri)
+        assertEquals(ImportResult.MalformedJson, result)
+    }
+
+    @Test
     fun parseImport_returnsUnsupportedVersion_whenVersionTooHigh() = runTest {
         val json = """{"exportVersion":999,"exportedAt":0,"modes":[]}"""
         val result = serviceWithJson(json = json).parseImport(fakeUri)

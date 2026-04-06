@@ -73,13 +73,16 @@ class ImportExportService(
             return ImportResult.UnsupportedVersion
         }
 
+        // Gson sets fields to null when absent, regardless of Kotlin's non-null types.
+        val modes = systemExport.modes ?: return ImportResult.MalformedJson
+
         val existingNames = modeDao.getAll().first().map { it.name }.toSet()
-        val conflictingNames = systemExport.modes.map { it.name }.filter { it in existingNames }
+        val conflictingNames = modes.map { it.name }.filter { it in existingNames }
 
         return if (conflictingNames.isEmpty()) {
-            ImportResult.Ready(systemExport.modes)
+            ImportResult.Ready(modes)
         } else {
-            ImportResult.ConflictsDetected(systemExport.modes, conflictingNames)
+            ImportResult.ConflictsDetected(modes, conflictingNames)
         }
     }
 
