@@ -19,9 +19,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -55,6 +57,12 @@ class GlobalSettingsViewModel(
 
     private val _exportReady = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
     val exportReady: SharedFlow<Pair<String, String>> = _exportReady.asSharedFlow()
+
+    val allModes: StateFlow<List<Mode>> = modeRepository.getAllModes()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _singleModeExportReady = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 1)
+    val singleModeExportReady: SharedFlow<Pair<String, String>> = _singleModeExportReady.asSharedFlow()
 
     private val shizukuPermissionListener =
         rikka.shizuku.Shizuku.OnRequestPermissionResultListener { _, result ->
@@ -101,6 +109,14 @@ class GlobalSettingsViewModel(
             val json = importExportService.export()
             val fileName = importExportService.exportFileName()
             _exportReady.emit(fileName to json)
+        }
+    }
+
+    fun onIndividualExportModeSelected(mode: Mode) {
+        viewModelScope.launch {
+            val json = importExportService.exportSingleMode(mode)
+            val fileName = importExportService.singleModeExportFileName(mode.name)
+            _singleModeExportReady.emit(fileName to json)
         }
     }
 
