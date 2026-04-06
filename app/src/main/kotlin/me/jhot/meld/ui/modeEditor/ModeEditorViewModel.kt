@@ -29,6 +29,7 @@ class ModeEditorViewModel(
     private val repository: ModeRepository,
     private val permissionChecker: PermissionChecker,
     val maxMediaVolume: Int,
+    val maxNotificationVolume: Int,
 ) : ViewModel() {
 
     private val _draft = MutableStateFlow(
@@ -110,7 +111,7 @@ class ModeEditorViewModel(
             initializer {
                 val app = checkNotNull(get(APPLICATION_KEY)) as MeldApplication
                 val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                ModeEditorViewModel(app.modeRepository, app.permissionChecker, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
+                ModeEditorViewModel(app.modeRepository, app.permissionChecker, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC), am.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION))
             }
         }
     }

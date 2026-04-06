@@ -241,7 +241,7 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                     value = settings.volumeNotification,
                     onValueChange = { updateSettings { copy(volumeNotification = it) } },
                     min = 0,
-                    max = 7,
+                    max = viewModel.maxNotificationVolume,
                     valueLabel = { it.toString() },
                 )
                 Spacer(Modifier.height(8.dp))
