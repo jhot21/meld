@@ -8,13 +8,12 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.unmockkAll
+import io.mockk.unmockkStatic
 import io.mockk.Runs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -51,7 +50,7 @@ class GlobalSettingsViewModelImportExportTest {
     @After
     fun teardown() {
         Dispatchers.resetMain()
-        unmockkAll()
+        unmockkStatic(rikka.shizuku.Shizuku::class)
     }
 
     private fun viewModel(

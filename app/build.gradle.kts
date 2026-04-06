@@ -40,6 +40,10 @@ android {
 
     testOptions {
         unitTests {
+            // Required because rikka.shizuku.Shizuku.<clinit> calls
+            // IShizukuApplication$Stub (extends android.os.Binder) during class
+            // initialization, which happens before mockkStatic can intercept it.
+            // Without this flag, Binder.attachInterface() throws "not mocked".
             isReturnDefaultValues = true
         }
     }
