@@ -149,7 +149,7 @@ class GlobalSettingsViewModel(
                 GlobalSettingsViewModel(
                     permissionChecker = app.permissionChecker,
                     packageName = app.packageName,
-                    importExportService = TODO("wired in Task 5"),
+                    importExportService = app.importExportService,
                     modeRepository = app.modeRepository,
                 )
             }
