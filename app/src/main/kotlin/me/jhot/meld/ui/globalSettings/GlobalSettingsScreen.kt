@@ -26,11 +26,16 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -86,6 +91,21 @@ fun GlobalSettingsScreen(navController: NavController) {
         }
     }
 
+    var pendingSingleModeExportJson by remember { mutableStateOf<String?>(null) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    val singleModeExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            val json = pendingSingleModeExportJson ?: return@let
+            context.contentResolver.openOutputStream(it)?.use { stream ->
+                stream.write(json.toByteArray())
+            }
+            pendingSingleModeExportJson = null
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -96,6 +116,20 @@ fun GlobalSettingsScreen(navController: NavController) {
         viewModel.exportReady.collect { (fileName, json) ->
             pendingExportJson = json
             exportLauncher.launch(fileName)
+        }
+    }
+
+    val allModes by viewModel.allModes.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.singleModeExportReady.collect { (fileName, json) ->
+            pendingSingleModeExportJson = json
+            singleModeExportLauncher.launch(fileName)
+        }
+    }
+
+    LaunchedEffect(importResult) {
+        if (importResult is ImportResult.Ready) {
+            viewModel.onImportConfirmed()
         }
     }
 
@@ -226,6 +260,36 @@ fun GlobalSettingsScreen(navController: NavController) {
                 }
                 OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "application/json")) }) {
                     Text("Import")
+                }
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = dropdownExpanded,
+                onExpandedChange = { dropdownExpanded = it },
+            ) {
+                OutlinedTextField(
+                    value = "",
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = { Text("Export individual mode") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = dropdownExpanded,
+                    onDismissRequest = { dropdownExpanded = false },
+                ) {
+                    allModes.forEach { mode ->
+                        DropdownMenuItem(
+                            text = { Text(mode.name) },
+                            onClick = {
+                                dropdownExpanded = false
+                                viewModel.onIndividualExportModeSelected(mode)
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                        )
+                    }
                 }
             }
 

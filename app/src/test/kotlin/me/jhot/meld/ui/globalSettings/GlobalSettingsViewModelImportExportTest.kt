@@ -1,6 +1,7 @@
 package me.jhot.meld.ui.globalSettings
 
 import android.net.Uri
+import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -11,6 +12,7 @@ import io.mockk.unmockkStatic
 import io.mockk.Runs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -53,7 +55,9 @@ class GlobalSettingsViewModelImportExportTest {
 
     private fun viewModel(
         importExportService: ImportExportService = mockk(relaxed = true),
-        modeRepository: ModeRepository = mockk(relaxed = true),
+        modeRepository: ModeRepository = mockk<ModeRepository> {
+            every { getAllModes() } returns flowOf(emptyList())
+        },
     ): GlobalSettingsViewModel {
         val permissionChecker = mockk<PermissionChecker> {
             every { canWriteSettings() } returns true
@@ -133,7 +137,9 @@ class GlobalSettingsViewModelImportExportTest {
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.Ready(importedModes)
         }
-        val repo = mockk<ModeRepository>(relaxed = true)
+        val repo = mockk<ModeRepository>(relaxed = true) {
+            every { getAllModes() } returns flowOf(emptyList())
+        }
         val vm = viewModel(importExportService = svc, modeRepository = repo)
 
         vm.onImportFilePicked(mockk<Uri>())  // sets importResult to Ready
@@ -153,7 +159,9 @@ class GlobalSettingsViewModelImportExportTest {
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.ConflictsDetected(importedModes, listOf("Work"))
         }
-        val repo = mockk<ModeRepository>(relaxed = true)
+        val repo = mockk<ModeRepository>(relaxed = true) {
+            every { getAllModes() } returns flowOf(emptyList())
+        }
         val vm = viewModel(importExportService = svc, modeRepository = repo)
 
         vm.onImportFilePicked(mockk<Uri>())  // sets importResult to ConflictsDetected
@@ -174,5 +182,57 @@ class GlobalSettingsViewModelImportExportTest {
         vm.onImportCancelled()
 
         assertNull(vm.importResult.value)
+    }
+
+    @Test
+    fun allModes_includesDefaultAndPrimaryModes() = runTest(testDispatcher) {
+        val modes = listOf(
+            Mode(id = 1, name = "Default", type = ModeType.DEFAULT, priority = 0),
+            Mode(id = 2, name = "Work", type = ModeType.PRIMARY, priority = 50),
+        )
+        val repo = mockk<ModeRepository> {
+            every { getAllModes() } returns flowOf(modes)
+        }
+        val vm = viewModel(modeRepository = repo)
+        assertEquals(modes, vm.allModes.value)
+    }
+
+    @Test
+    fun onIndividualExportModeSelected_emitsFileNameAndJson() = runTest(testDispatcher) {
+        val mode = Mode(id = 1, name = "Work Mode", type = ModeType.PRIMARY, priority = 50)
+        val json = """{"exportVersion":1,"exportedAt":0,"modes":[{"name":"Work Mode","type":"PRIMARY","priority":50,"settings":{}}]}"""
+        val svc = mockk<ImportExportService> {
+            every { exportSingleMode(mode) } returns json
+            every { singleModeExportFileName("Work Mode") } returns "meld-export-Work_Mode-2026-04-06.json"
+        }
+        val vm = viewModel(importExportService = svc)
+
+        var emitted: Pair<String, String>? = null
+        val job = launch { vm.singleModeExportReady.collect { emitted = it } }
+
+        vm.onIndividualExportModeSelected(mode)
+
+        job.cancel()
+        assertEquals("meld-export-Work_Mode-2026-04-06.json" to json, emitted)
+    }
+
+    @Test
+    fun onIndividualExportModeSelected_emittedJson_containsOnlySelectedMode() = runTest(testDispatcher) {
+        val mode = Mode(id = 2, name = "Work", type = ModeType.PRIMARY, priority = 50)
+        val singleModeJson = """{"exportVersion":1,"exportedAt":0,"modes":[{"name":"Work","type":"PRIMARY","priority":50,"settings":{}}]}"""
+        val svc = mockk<ImportExportService> {
+            every { exportSingleMode(mode) } returns singleModeJson
+            every { singleModeExportFileName(any()) } returns "meld-export-Work-2026-04-06.json"
+        }
+        val vm = viewModel(importExportService = svc)
+
+        var emitted: Pair<String, String>? = null
+        val job = launch { vm.singleModeExportReady.collect { emitted = it } }
+
+        vm.onIndividualExportModeSelected(mode)
+
+        job.cancel()
+        val parsed = Gson().fromJson(emitted!!.second, Map::class.java)
+        assertEquals(1.0, (parsed["modes"] as List<*>).size.toDouble(), 0.0)
     }
 }

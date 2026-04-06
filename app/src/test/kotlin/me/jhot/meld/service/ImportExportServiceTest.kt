@@ -146,4 +146,64 @@ class ImportExportServiceTest {
         val result = serviceWithJson(json = json).parseImport(fakeUri)
         assertEquals(ImportResult.UnsupportedVersion, result)
     }
+
+    // --- exportSingleMode() ---
+
+    @Test
+    fun exportSingleMode_producesJsonWithExactlyOneMode() {
+        val mode = Mode(id = 1, name = "Work", type = ModeType.PRIMARY, priority = 50)
+        val json = serviceWithModes().exportSingleMode(mode)
+        val parsed = gson.fromJson(json, Map::class.java)
+        val modesList = parsed["modes"] as List<*>
+        assertEquals(1, modesList.size)
+    }
+
+    @Test
+    fun exportSingleMode_includesCorrectExportVersion() {
+        val mode = Mode(name = "Work", type = ModeType.PRIMARY, priority = 50)
+        val json = serviceWithModes().exportSingleMode(mode)
+        val parsed = gson.fromJson(json, Map::class.java)
+        assertEquals(
+            ImportExportService.CURRENT_EXPORT_VERSION.toDouble(),
+            parsed["exportVersion"]
+        )
+    }
+
+    @Test
+    fun exportSingleMode_includesExportedAt() {
+        val mode = Mode(name = "Work", type = ModeType.PRIMARY, priority = 50)
+        val json = serviceWithModes().exportSingleMode(mode)
+        val parsed = gson.fromJson(json, Map::class.java)
+        assertTrue("exportedAt must be present", parsed.containsKey("exportedAt"))
+        assertTrue("exportedAt must be positive", (parsed["exportedAt"] as Double) > 0)
+    }
+
+    @Test
+    fun exportSingleMode_omitsIdCreatedAtUpdatedAt() {
+        val mode = Mode(id = 99, name = "Work", type = ModeType.PRIMARY, priority = 50, createdAt = 1000L, updatedAt = 2000L)
+        val json = serviceWithModes().exportSingleMode(mode)
+        val parsed = gson.fromJson(json, Map::class.java)
+        val modesList = parsed["modes"] as List<Map<*, *>>
+        val modeMap = modesList[0]
+        assertFalse("id must not be exported", modeMap.containsKey("id"))
+        assertFalse("createdAt must not be exported", modeMap.containsKey("createdAt"))
+        assertFalse("updatedAt must not be exported", modeMap.containsKey("updatedAt"))
+    }
+
+    // --- singleModeExportFileName() ---
+
+    @Test
+    fun singleModeExportFileName_sanitizesSpacesToUnderscores() {
+        val fileName = serviceWithModes().singleModeExportFileName("Work Mode")
+        assertTrue("spaces must become underscores", fileName.contains("Work_Mode"))
+    }
+
+    @Test
+    fun singleModeExportFileName_sanitizesSpecialCharacters() {
+        val fileName = serviceWithModes().singleModeExportFileName("Night & Sleep")
+        assertFalse("& must not appear in filename", fileName.contains("&"))
+        assertFalse("space must not appear in filename", fileName.contains(" "))
+        assertTrue("must start with meld-export-", fileName.startsWith("meld-export-"))
+        assertTrue("must end with .json", fileName.endsWith(".json"))
+    }
 }

@@ -5,6 +5,7 @@ import android.net.Uri
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import me.jhot.meld.data.db.dao.ModeDao
+import me.jhot.meld.data.model.Mode
 import me.jhot.meld.data.model.ModeSettings
 import me.jhot.meld.data.model.ModeType
 import kotlinx.coroutines.flow.first
@@ -36,16 +37,16 @@ class ImportExportService(
 ) {
     private val gson = Gson()
 
+    private fun Mode.toModeExport() = ModeExport(
+        name = name,
+        type = type,
+        priority = priority,
+        settings = settings,
+    )
+
     suspend fun export(): String {
         val modes = modeDao.getAll().first()
-        val exports = modes.map { mode ->
-            ModeExport(
-                name = mode.name,
-                type = mode.type,
-                priority = mode.priority,
-                settings = mode.settings,
-            )
-        }
+        val exports = modes.map { it.toModeExport() }
         val systemExport = SystemExport(
             exportVersion = CURRENT_EXPORT_VERSION,
             exportedAt = System.currentTimeMillis(),
@@ -87,6 +88,20 @@ class ImportExportService(
     }
 
     fun exportFileName(): String = "meld-export-${LocalDate.now()}.json"
+
+    fun exportSingleMode(mode: Mode): String {
+        val systemExport = SystemExport(
+            exportVersion = CURRENT_EXPORT_VERSION,
+            exportedAt = System.currentTimeMillis(),
+            modes = listOf(mode.toModeExport()),
+        )
+        return gson.toJson(systemExport)
+    }
+
+    fun singleModeExportFileName(modeName: String): String {
+        val safeName = modeName.replace(Regex("[^a-zA-Z0-9]"), "_")
+        return "meld-export-${safeName}-${LocalDate.now()}.json"
+    }
 
     companion object {
         const val CURRENT_EXPORT_VERSION = 1
