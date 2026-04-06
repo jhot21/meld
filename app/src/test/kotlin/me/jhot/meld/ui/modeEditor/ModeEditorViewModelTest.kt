@@ -45,7 +45,7 @@ class ModeEditorViewModelTest {
         val permissionChecker = mockk<PermissionChecker> {
             every { canWriteSecureSettings() } returns false
         }
-        return ModeEditorViewModel(repository, permissionChecker)
+        return ModeEditorViewModel(repository, permissionChecker, maxMediaVolume = 15, maxNotificationVolume = 7)
     }
 
     @Test
@@ -113,7 +113,7 @@ class ModeEditorViewModelTest {
         val permissionChecker = mockk<PermissionChecker> {
             every { canWriteSecureSettings() } returns false
         }
-        val vm = ModeEditorViewModel(repository, permissionChecker)
+        val vm = ModeEditorViewModel(repository, permissionChecker, maxMediaVolume = 15, maxNotificationVolume = 7)
         vm.updateName("Work") // triggers conflict
         vm.save()
         coVerify(exactly = 0) { repository.insertMode(any()) }
