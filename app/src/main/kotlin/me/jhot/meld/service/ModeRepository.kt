@@ -70,4 +70,9 @@ class ModeRepository(
     }
 
     fun getAllModes(): Flow<List<Mode>> = modeDao.getAll()
+
+    suspend fun importModes(modes: List<Mode>) {
+        modeDao.replaceByName(modes)
+        resolveAndApply()
+    }
 }

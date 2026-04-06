@@ -15,3 +15,4 @@ app/build/
 meld-release-key.jks
 docs/superpowers/
 logcat.txt
+.task/

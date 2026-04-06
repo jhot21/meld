@@ -131,4 +131,50 @@ class DatabaseTest {
             assertEquals("Cannot delete the DEFAULT mode", e.message)
         }
     }
+
+    @Test
+    fun replaceByName_insertsNewModes() = runTest {
+        val dao = meldDb.modeDao()
+        val modes = listOf(
+            Mode(name = "Work", type = ModeType.PRIMARY, priority = 50),
+            Mode(name = "Home", type = ModeType.SECONDARY, priority = 30),
+        )
+        dao.replaceByName(modes)
+        val all = dao.getAll().first()
+        assertEquals(2, all.size)
+        val work = all.find { it.name == "Work" }!!
+        assertEquals(ModeType.PRIMARY, work.type)
+        assertEquals(50, work.priority)
+        val home = all.find { it.name == "Home" }!!
+        assertEquals(ModeType.SECONDARY, home.type)
+        assertEquals(30, home.priority)
+    }
+
+    @Test
+    fun replaceByName_overwritesExistingModeWithSameName() = runTest {
+        val dao = meldDb.modeDao()
+        dao.insert(Mode(name = "Work", type = ModeType.PRIMARY, priority = 50, settings = ModeSettings(brightness = 100)))
+
+        val imported = listOf(Mode(name = "Work", type = ModeType.PRIMARY, priority = 70, settings = ModeSettings(brightness = 200)))
+        dao.replaceByName(imported)
+
+        val all = dao.getAll().first()
+        assertEquals(1, all.size)
+        assertEquals(70, all[0].priority)
+        assertEquals(200, all[0].settings.brightness)
+    }
+
+    @Test
+    fun replaceByName_leavesOtherModesUntouched() = runTest {
+        val dao = meldDb.modeDao()
+        dao.insert(Mode(name = "Existing", type = ModeType.SECONDARY, priority = 10))
+
+        val imported = listOf(Mode(name = "Work", type = ModeType.PRIMARY, priority = 50))
+        dao.replaceByName(imported)
+
+        val all = dao.getAll().first()
+        assertEquals(2, all.size)
+        assertTrue(all.any { it.name == "Existing" })
+        assertTrue(all.any { it.name == "Work" })
+    }
 }
