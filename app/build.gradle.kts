@@ -13,8 +13,8 @@ android {
         applicationId = "me.jhot.meld"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = (findProperty("VERSION_CODE") as String?)?.toInt() ?: 1
+        versionName = (findProperty("VERSION_NAME") as String?) ?: "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
