@@ -124,7 +124,6 @@ fun GlobalSettingsScreen(navController: NavController) {
         viewModel.singleModeExportReady.collect { (fileName, json) ->
             pendingSingleModeExportJson = json
             singleModeExportLauncher.launch(fileName)
-            dropdownExpanded = false
         }
     }
 

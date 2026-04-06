@@ -178,6 +178,18 @@ class ImportExportServiceTest {
         assertTrue("exportedAt must be positive", (parsed["exportedAt"] as Double) > 0)
     }
 
+    @Test
+    fun exportSingleMode_omitsIdCreatedAtUpdatedAt() {
+        val mode = Mode(id = 99, name = "Work", type = ModeType.PRIMARY, priority = 50, createdAt = 1000L, updatedAt = 2000L)
+        val json = serviceWithModes().exportSingleMode(mode)
+        val parsed = gson.fromJson(json, Map::class.java)
+        val modesList = parsed["modes"] as List<Map<*, *>>
+        val modeMap = modesList[0]
+        assertFalse("id must not be exported", modeMap.containsKey("id"))
+        assertFalse("createdAt must not be exported", modeMap.containsKey("createdAt"))
+        assertFalse("updatedAt must not be exported", modeMap.containsKey("updatedAt"))
+    }
+
     // --- singleModeExportFileName() ---
 
     @Test
