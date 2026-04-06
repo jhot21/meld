@@ -18,11 +18,5 @@ tasks:
     status:
       - grep -q 'findProperty("VERSION_CODE")' app/build.gradle.kts
     cmds:
-      - >-
-        sed -i ''
-        's/versionCode = [0-9]*/versionCode = (findProperty("VERSION_CODE") as String?)?\.toInt() ?: 1/'
-        app/build.gradle.kts
-      - >-
-        sed -i ''
-        's/versionName = ".*"/versionName = (findProperty("VERSION_NAME") as String?) ?: "1.0"/'
-        app/build.gradle.kts
+      - "sed -i '' 's/versionCode = [0-9]*/versionCode = (findProperty(\"VERSION_CODE\") as String?)?.toInt() ?: 1/' app/build.gradle.kts"
+      - "sed -i '' 's/versionName = \".*\"/versionName = (findProperty(\"VERSION_NAME\") as String?) ?: \"1.0\"/' app/build.gradle.kts"
