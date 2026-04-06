@@ -120,7 +120,6 @@ fun GlobalSettingsScreen(navController: NavController) {
     }
 
     val allModes by viewModel.allModes.collectAsState()
-
     LaunchedEffect(Unit) {
         viewModel.singleModeExportReady.collect { (fileName, json) ->
             pendingSingleModeExportJson = json
@@ -269,6 +268,7 @@ fun GlobalSettingsScreen(navController: NavController) {
                     readOnly = true,
                     placeholder = { Text("Export individual mode") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 )
                 ExposedDropdownMenu(
@@ -278,7 +278,11 @@ fun GlobalSettingsScreen(navController: NavController) {
                     allModes.forEach { mode ->
                         DropdownMenuItem(
                             text = { Text(mode.name) },
-                            onClick = { viewModel.onIndividualExportModeSelected(mode) },
+                            onClick = {
+                                dropdownExpanded = false
+                                viewModel.onIndividualExportModeSelected(mode)
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                         )
                     }
                 }
