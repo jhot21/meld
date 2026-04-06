@@ -21,3 +21,20 @@ tasks:
     cmds:
       - "sed -i '' 's/versionCode = [0-9][0-9]*/versionCode = (findProperty(\"VERSION_CODE\") as String?)?.toInt() ?: 1/' app/build.gradle.kts"
       - "sed -i '' 's/versionName = \".*\"/versionName = (findProperty(\"VERSION_NAME\") as String?) ?: \"1.0\"/' app/build.gradle.kts"
+
+  set-version:
+    desc: "Set app version (usage: task set-version -- <version-name>)"
+    deps: [sync-build-gradle]
+    vars:
+      CURRENT_CODE:
+        sh: grep "^VERSION_CODE=" gradle.properties | cut -d= -f2
+      NEW_CODE:
+        sh: 'echo $(( {{.CURRENT_CODE | default "0"}} + 1 ))'
+    cmds:
+      - grep -v "^VERSION_CODE=" gradle.properties > gradle.properties.tmp
+      - echo "VERSION_CODE={{.NEW_CODE}}" >> gradle.properties.tmp
+      - grep -v "^VERSION_NAME=" gradle.properties.tmp > gradle.properties.tmp2
+      - echo "VERSION_NAME={{.CLI_ARGS}}" >> gradle.properties.tmp2
+      - mv gradle.properties.tmp2 gradle.properties
+      - rm -f gradle.properties.tmp
+      - echo "Version set{{":"}} {{.NEW_CODE}} / {{.CLI_ARGS}}"
