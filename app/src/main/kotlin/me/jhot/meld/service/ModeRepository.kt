@@ -5,9 +5,13 @@ import me.jhot.meld.data.db.dao.ModeDao
 import me.jhot.meld.data.model.ActiveMode
 import me.jhot.meld.data.model.Mode
 import me.jhot.meld.domain.ModeResolver
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -15,14 +19,23 @@ class ModeRepository(
     private val modeDao: ModeDao,
     private val activeModeDao: ActiveModeDao,
     private val settingsApplier: SettingsApplier,
+    scope: CoroutineScope,
 ) {
 
     private val applyLock = Mutex()
+
     /** Emits combined list of all modes with their current active state for UI observation. */
-    val modesWithActiveState: Flow<List<Pair<Mode, Boolean>>> =
+    val modesWithActiveState: StateFlow<List<Pair<Mode, Boolean>>> =
         combine(modeDao.getAll(), activeModeDao.getActiveModeIds()) { modes, activeIds ->
             modes.map { mode -> mode to (mode.id in activeIds) }
-        }
+        }.stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    /**
+     * Returns the mode with [id] from the current in-memory snapshot, or null if not yet loaded
+     * or not found. Synchronous — no coroutine needed.
+     */
+    fun getModeByIdNow(id: Long): Mode? =
+        modesWithActiveState.value.firstOrNull { (mode, _) -> mode.id == id }?.first
 
     suspend fun addToContext(modeName: String) {
         val mode = modeDao.getByName(modeName) ?: return

@@ -3,7 +3,10 @@ package me.jhot.meld.service
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import me.jhot.meld.data.db.dao.ActiveModeDao
 import me.jhot.meld.data.db.dao.ModeDao
@@ -12,6 +15,7 @@ import me.jhot.meld.data.model.ModeSettings
 import me.jhot.meld.data.model.ModeType
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ModeRepositoryImportTest {
 
     private fun repository(
@@ -20,7 +24,7 @@ class ModeRepositoryImportTest {
             every { getActiveModeIds() } returns flowOf(emptySet())
         },
         settingsApplier: SettingsApplier = mockk(relaxed = true),
-    ) = ModeRepository(modeDao, activeModeDao, settingsApplier)
+    ) = ModeRepository(modeDao, activeModeDao, settingsApplier, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun importModes_callsReplaceByName_withConvertedModeEntities() = runTest {
