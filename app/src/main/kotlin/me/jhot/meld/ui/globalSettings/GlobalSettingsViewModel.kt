@@ -72,6 +72,7 @@ class GlobalSettingsViewModel(
         }
 
     init {
+        refresh()
         rikka.shizuku.Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
     }
 

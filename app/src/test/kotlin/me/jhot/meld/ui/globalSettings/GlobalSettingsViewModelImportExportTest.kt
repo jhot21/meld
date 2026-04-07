@@ -74,6 +74,16 @@ class GlobalSettingsViewModelImportExportTest {
     }
 
     @Test
+    fun init_populatesPermissionStates_fromPermissionChecker() {
+        // viewModel() mocks permissionChecker returning true for all permissions.
+        // After this fix, init {} calls refresh(), so values are set before any explicit refresh() call.
+        val vm = viewModel()
+        assertTrue(vm.writeSettingsGranted.value)
+        assertTrue(vm.notificationPolicyGranted.value)
+        assertTrue(vm.secureSettingsGranted.value)
+    }
+
+    @Test
     fun onExportClicked_emitsFileNameAndJson() = runTest(testDispatcher) {
         val json = """{"exportVersion":1,"exportedAt":0,"modes":[]}"""
         val svc = mockk<ImportExportService> {
