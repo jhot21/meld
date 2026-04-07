@@ -66,6 +66,14 @@ class ModeEditorViewModel(
 
     fun loadMode(modeId: Long) {
         _saveComplete.value = false
+        // Fast path: read from in-memory cache (covers normal navigation from mode list)
+        val cached = repository.getModeByIdNow(modeId)
+        if (cached != null) {
+            originalMode = cached
+            _draft.value = cached
+            return
+        }
+        // Slow path: wait for first Room emission (covers cold-start deep links)
         viewModelScope.launch {
             val mode = repository.getAllModes().first().find { it.id == modeId } ?: return@launch
             originalMode = mode

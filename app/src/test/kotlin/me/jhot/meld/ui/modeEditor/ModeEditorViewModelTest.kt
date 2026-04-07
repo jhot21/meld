@@ -41,6 +41,7 @@ class ModeEditorViewModelTest {
     private fun viewModel(modes: List<Mode> = emptyList()): ModeEditorViewModel {
         val repository = mockk<ModeRepository> {
             every { getAllModes() } returns flowOf(modes)
+            every { getModeByIdNow(any()) } answers { modes.find { it.id == firstArg<Long>() } }
         }
         val permissionChecker = mockk<PermissionChecker> {
             every { canWriteSecureSettings() } returns false
@@ -138,5 +139,15 @@ class ModeEditorViewModelTest {
         val vm = viewModel()
         vm.updateExclusive(false)
         assertEquals(ModeType.SECONDARY, vm.draft.value.type)
+    }
+
+    @Test
+    fun loadMode_populatesDraftSynchronously_whenCachedModeExists() {
+        val existing = mode(1L, "Focus")
+        val vm = viewModel(modes = listOf(existing))
+        vm.loadMode(1L)
+        // With getModeByIdNow() returning the mode, draft is set before any coroutine runs
+        assertEquals(existing, vm.draft.value)
+        assertEquals(false, vm.isNew)
     }
 }
