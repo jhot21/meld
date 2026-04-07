@@ -53,6 +53,7 @@ class MeldApplication : Application() {
             modeDao = database.modeDao(),
             activeModeDao = activeDatabase.activeModeDao(),
             settingsApplier = settingsApplier,
+            scope = applicationScope,
         )
     }
 
