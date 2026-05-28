@@ -19,7 +19,7 @@ import rikka.shizuku.Shizuku
 
 private const val TAG = "BluetoothLifecycleMgr"
 
-class BluetoothLifecycleManager(
+open class BluetoothLifecycleManager(
     private val scope: CoroutineScope,
     private val toggler: BluetoothToggler,
     private val btStateSource: Flow<Int>,
@@ -48,7 +48,7 @@ class BluetoothLifecycleManager(
         }
     }
 
-    fun setDesired(enabled: Boolean?) {
+    open fun setDesired(enabled: Boolean?) {
         _desired.value = enabled
     }
 }
