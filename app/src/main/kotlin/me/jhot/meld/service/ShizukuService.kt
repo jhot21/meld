@@ -20,8 +20,43 @@ class ShizukuService : IShizukuService.Stub() {
     }
 
     override fun setBluetooth(enable: Boolean) {
-        val action = if (enable) "enable" else "disable"
-        exec("cmd", "bluetooth_manager", action)
+        try {
+            setBluetoothDirect(enable)
+        } catch (e: Exception) {
+            android.util.Log.w("ShizukuService", "setBluetoothDirect failed, falling back to cmd: ${e.message}")
+            val action = if (enable) "enable" else "disable"
+            exec("cmd", "bluetooth_manager", action)
+        }
+    }
+
+    // Calls IBluetoothManager.enable()/disable() directly via reflection rather than spawning
+    // a `cmd bluetooth_manager` subprocess. Avoids subprocess lifecycle races (fork → JVM start
+    // → binder connect → call → exit) that can interact poorly with the BT state machine.
+    // AttributionSource uses our UID (shell under Shizuku); persist=true matches
+    // BluetoothAdapter.disable() default so the stack treats it as a user-intent disable.
+    private fun setBluetoothDirect(enable: Boolean) {
+        val binder = Class.forName("android.os.ServiceManager")
+            .getDeclaredMethod("getService", String::class.java)
+            .invoke(null, "bluetooth_manager") as? android.os.IBinder
+            ?: throw IllegalStateException("bluetooth_manager service not found")
+
+        val stub = Class.forName("android.bluetooth.IBluetoothManager\$Stub")
+        val manager = stub.getDeclaredMethod("asInterface", android.os.IBinder::class.java)
+            .invoke(null, binder)!!
+
+        val source = android.content.AttributionSource.Builder(android.os.Process.myUid())
+            .setPackageName("shell")
+            .build()
+
+        if (enable) {
+            manager.javaClass
+                .getMethod("enable", android.content.AttributionSource::class.java)
+                .invoke(manager, source)
+        } else {
+            manager.javaClass
+                .getMethod("disable", android.content.AttributionSource::class.java, Boolean::class.javaPrimitiveType)
+                .invoke(manager, source, true)
+        }
     }
 
     override fun setMediaVolumeDirect(volume: Int) {
