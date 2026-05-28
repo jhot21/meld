@@ -7,7 +7,6 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.jhot.meld.data.model.*
 
@@ -19,12 +18,8 @@ class SettingsApplier(
     private val permissionChecker: PermissionChecker,
     private val overrideSessionStore: OverrideSessionStore,
     private val applicationScope: CoroutineScope,
+    private val btLifecycleManager: BluetoothLifecycleManager,
 ) {
-
-    // Tracks the in-flight BT coroutine so a stale queued command can be cancelled
-    // before a newer one runs. ModeRepository serializes apply() calls via applyLock,
-    // so this field is always accessed from a single coroutine at a time.
-    private var btJob: Job? = null
 
     fun apply(settings: ModeSettings) {
         applyMediaVolumeWithOverride(settings)
@@ -37,6 +32,7 @@ class SettingsApplier(
         if (permissionChecker.canWriteSecureSettings()) {
             applySecureSettings(settings)
         }
+        btLifecycleManager.setDesired(settings.bluetooth)
     }
 
     // ---- Media volume override logic ----------------------------------------
@@ -228,40 +224,6 @@ class SettingsApplier(
                 LocationMode.HIGH_ACCURACY -> 3
             }
             resolver.putSecureIntIfChanged("location_mode", value)
-        }
-
-        settings.bluetooth?.let { enable ->
-            if (ShizukuGranter.hasPermission()) {
-                // Cancel any in-flight BT command. Without this, rapid mode switches queue
-                // multiple coroutines with contradictory enable values. Each reads current BT
-                // state when it runs, but uses the enable value from when it was queued — which
-                // may now be stale. Cancelling the old job ensures only the most recent intent
-                // executes, preventing enable/disable thrash that can crash the BT stack.
-                btJob?.cancel()
-                btJob = applicationScope.launch {
-                    val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE)
-                            as? android.bluetooth.BluetoothManager)?.adapter
-                    // Use getState() rather than isEnabled() so we correctly handle
-                    // transitional states. isEnabled() returns false for both STATE_OFF and
-                    // STATE_TURNING_ON — meaning if BT is mid-transition to ON and we want
-                    // OFF, isEnabled() == false == enable, and we'd incorrectly skip the
-                    // disable command, leaving BT on.
-                    val btState = adapter?.state ?: android.bluetooth.BluetoothAdapter.STATE_OFF
-                    val alreadyAtTarget = if (enable) {
-                        btState == android.bluetooth.BluetoothAdapter.STATE_ON ||
-                            btState == android.bluetooth.BluetoothAdapter.STATE_TURNING_ON
-                    } else {
-                        btState == android.bluetooth.BluetoothAdapter.STATE_OFF ||
-                            btState == android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF
-                    }
-                    if (!alreadyAtTarget) {
-                        val ok = ShizukuGranter.setBluetooth(enable)
-                        if (!ok) Log.w(TAG, "Shizuku setBluetooth($enable) failed")
-                    }
-                }
-            } else {
-                Log.w(TAG, "Bluetooth toggle skipped: Shizuku permission not available")
-            }
         }
     }
 
