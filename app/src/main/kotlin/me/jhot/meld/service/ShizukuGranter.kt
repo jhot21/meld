@@ -69,12 +69,13 @@ object ShizukuGranter {
     /**
      * Acquires the lock, binds the Shizuku UserService, runs [block], then unbinds.
      *
-     * unbindUserService is posted to the main thread via Handler.post rather than called
-     * directly. Shizuku iterates its internal connection HashMap on the main thread when
+     * Both bindUserService and unbindUserService are dispatched to the main thread via
+     * Handler.post. Shizuku iterates its internal connection HashMap on the main thread when
      * delivering connected callbacks (ShizukuServiceConnection.lambda$connected$0). Calling
-     * unbindUserService from Dispatchers.Default while that iteration is in progress modifies
-     * the map mid-iteration and causes ConcurrentModificationException. Handler.post ensures
-     * the unbind runs as a fresh main-looper message, after the current iteration completes.
+     * either bind or unbind from Dispatchers.Default while that iteration is in progress
+     * modifies the map mid-iteration and causes ConcurrentModificationException. Handler.post
+     * ensures both operations run as fresh main-looper messages, after the current iteration
+     * completes.
      */
     private suspend fun withShizukuService(block: (IShizukuService) -> Unit): Boolean =
         lock.withLock {
@@ -98,22 +99,25 @@ object ShizukuGranter {
                             }
                         }
                         connection = conn
-                        // Post unbind to main thread so it runs after the current
-                        // Shizuku iteration completes, preventing ConcurrentModificationException.
                         cont.invokeOnCancellation {
                             mainHandler.post {
                                 try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
                             }
                         }
-                        try {
-                            Shizuku.bindUserService(serviceArgs, conn)
-                        } catch (e: Exception) {
-                            if (cont.isActive) cont.resume(false)
+                        // Post bind to main thread so it never races with Shizuku's HashMap
+                        // iteration. The connected callback is delivered on the main thread;
+                        // calling bindUserService from a background thread while that iteration
+                        // is in progress causes ConcurrentModificationException.
+                        mainHandler.post {
+                            try {
+                                Shizuku.bindUserService(serviceArgs, conn)
+                            } catch (e: Exception) {
+                                if (cont.isActive) cont.resume(false)
+                            }
                         }
                     }
                 }
             }
-            // Post unbind to main thread so it runs after the current Shizuku iteration completes.
             connection?.let { conn ->
                 mainHandler.post {
                     try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}

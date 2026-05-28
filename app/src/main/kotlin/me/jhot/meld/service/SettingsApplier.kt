@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.jhot.meld.data.model.*
 
@@ -19,6 +20,11 @@ class SettingsApplier(
     private val overrideSessionStore: OverrideSessionStore,
     private val applicationScope: CoroutineScope,
 ) {
+
+    // Tracks the in-flight BT coroutine so a stale queued command can be cancelled
+    // before a newer one runs. ModeRepository serializes apply() calls via applyLock,
+    // so this field is always accessed from a single coroutine at a time.
+    private var btJob: Job? = null
 
     fun apply(settings: ModeSettings) {
         applyMediaVolumeWithOverride(settings)
@@ -226,9 +232,13 @@ class SettingsApplier(
 
         settings.bluetooth?.let { enable ->
             if (ShizukuGranter.hasPermission()) {
-                applicationScope.launch {
-                    // Check BT state inside the coroutine so a queued command doesn't
-                    // re-fire after an earlier launch already applied the change.
+                // Cancel any in-flight BT command. Without this, rapid mode switches queue
+                // multiple coroutines with contradictory enable values. Each reads current BT
+                // state when it runs, but uses the enable value from when it was queued — which
+                // may now be stale. Cancelling the old job ensures only the most recent intent
+                // executes, preventing enable/disable thrash that can crash the BT stack.
+                btJob?.cancel()
+                btJob = applicationScope.launch {
                     val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE)
                             as? android.bluetooth.BluetoothManager)?.adapter
                     // Use getState() rather than isEnabled() so we correctly handle
