@@ -1,11 +1,13 @@
 package me.jhot.meld
 
 import android.app.Application
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.room.Room
 import kotlinx.coroutines.CoroutineScope
@@ -77,13 +79,23 @@ class MeldApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        // Android 14+ restricts startForegroundService() from background contexts, but
-        // the cases where Application.onCreate() runs in the background are either:
-        //   • System restart of a killed process — the system grants a start exemption.
-        //   • After a reboot — BootReceiver now calls startForegroundService first, so
-        //     this call is a no-op duplicate (harmless; Android deduplicates starts).
-        // First launch from the user is always foreground, so no restriction applies there.
-        startForegroundService(Intent(this, MeldForegroundService::class.java))
+        // startForegroundService() is safe for most process-creation contexts:
+        //   • User opens the app (MainActivity) — always foreground, always exempt.
+        //   • After a reboot — LOCKED_BOOT_COMPLETED is an exempt broadcast; the OS grants
+        //     the FGS start exemption to the whole process before Application.onCreate() runs.
+        //   • NtfyReceiver can't wake a dead process (dynamically registered).
+        //
+        // Non-exempt background triggers — Tasker FIRE_SETTING / QUERY_CONDITION broadcasts
+        // and IntentReceiver's meld.intent.SET_MODE — do NOT grant an FGS start exemption.
+        // Without the catch, the exception propagates through Application.onCreate() and
+        // crashes the entire process before NtfyReceiver registers or TaskerBridge starts.
+        // Catching here lets those initializations complete; the FGS will be started by
+        // the next exempt trigger (reboot via BootReceiver, or user opening the app).
+        try {
+            startForegroundService(Intent(this, MeldForegroundService::class.java))
+        } catch (e: ForegroundServiceStartNotAllowedException) {
+            Log.w(TAG, "FGS start blocked by background restriction; will retry on next allowed trigger", e)
+        }
         ContextCompat.registerReceiver(
             this,
             NtfyReceiver(),
@@ -91,6 +103,10 @@ class MeldApplication : Application() {
             ContextCompat.RECEIVER_EXPORTED,
         )
         TaskerBridge(this, applicationScope).start()
+    }
+
+    companion object {
+        private const val TAG = "MeldApplication"
     }
 
     private fun createNotificationChannel() {

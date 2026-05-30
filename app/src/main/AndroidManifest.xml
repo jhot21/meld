@@ -130,5 +130,34 @@
                 <category android:name="com.twofortyfouram.locale.intent.category.PLUGIN_CONDITION" />
             </intent-filter>
         </activity>
+        <!-- The Tasker library's IntentServiceCondition and IntentServiceAction start as foreground
+             services with zero-icon notifications (all resource IDs hardcoded to 0 in the library's
+             default NotificationProperties), logging "Invalid resource ID 0x00000000" on every
+             QUERY_CONDITION and FIRE_SETTING delivery.
+
+             Condition fix: remove IntentServiceCondition; Tasker evaluates conditions via
+             BroadcastReceiverCondition which handles them inline via ordered-broadcast
+             setResultCode() — no FGS, no broken notification.
+
+             Action fix: remove both BroadcastReceiverAction (which starts IntentServiceAction
+             by explicit ComponentName) and IntentServiceAction, replacing them with
+             MeldActionReceiver which handles FIRE_SETTING inline via goAsync(). -->
+        <service
+            android:name="com.joaomgcd.taskerpluginlibrary.condition.IntentServiceCondition"
+            tools:node="remove" />
+        <receiver
+            android:name="com.joaomgcd.taskerpluginlibrary.action.BroadcastReceiverAction"
+            tools:node="remove" />
+        <service
+            android:name="com.joaomgcd.taskerpluginlibrary.action.IntentServiceAction"
+            tools:node="remove" />
+
+        <receiver
+            android:name=".tasker.MeldActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
