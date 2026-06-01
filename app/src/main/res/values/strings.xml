@@ -11,4 +11,6 @@
     <string name="state_direction_active">Active</string>
     <string name="state_direction_inactive">Inactive</string>
     <string name="state_direction_label">State</string>
+    <string name="tasker_label_mode_name">Mode Name</string>
+    <string name="tasker_label_mode_type">Mode Type</string>
 </resources>
