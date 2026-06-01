@@ -8,8 +8,18 @@ import com.joaomgcd.taskerpluginlibrary.input.TaskerInput
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultCondition
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultConditionSatisfied
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultConditionUnsatisfied
+import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginRunner
+import me.jhot.meld.R
 
 class ModeDeactivatedRunner : TaskerPluginRunnerConditionEvent<ModeNameInput, ModeEventOutput, ModeEventOutput>() {
+    override val notificationProperties get() = TaskerPluginRunner.NotificationProperties(
+        R.string.tasker_event_mode_deactivated,
+        R.string.tasker_event_mode_deactivated,
+        R.string.tasker_event_mode_deactivated,
+        R.string.tasker_event_mode_deactivated,
+        R.drawable.ic_launcher_foreground,
+    )
+
     override fun getSatisfiedCondition(
         context: Context,
         input: TaskerInput<ModeNameInput>,

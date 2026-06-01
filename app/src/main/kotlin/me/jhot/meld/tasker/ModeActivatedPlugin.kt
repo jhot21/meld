@@ -8,12 +8,22 @@ import com.joaomgcd.taskerpluginlibrary.input.TaskerInput
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultCondition
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultConditionSatisfied
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultConditionUnsatisfied
+import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginRunner
+import me.jhot.meld.R
 
 /** Pure function — also called directly in unit tests. */
 internal fun matchesEventFilter(filterModeName: String, eventModeName: String): Boolean =
     filterModeName.isEmpty() || filterModeName == eventModeName
 
 class ModeActivatedRunner : TaskerPluginRunnerConditionEvent<ModeNameInput, ModeEventOutput, ModeEventOutput>() {
+    override val notificationProperties get() = TaskerPluginRunner.NotificationProperties(
+        R.string.tasker_event_mode_activated,
+        R.string.tasker_event_mode_activated,
+        R.string.tasker_event_mode_activated,
+        R.string.tasker_event_mode_activated,
+        R.drawable.ic_launcher_foreground,
+    )
+
     override fun getSatisfiedCondition(
         context: Context,
         input: TaskerInput<ModeNameInput>,

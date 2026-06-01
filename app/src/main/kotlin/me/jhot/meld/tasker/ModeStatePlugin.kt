@@ -8,9 +8,11 @@ import com.joaomgcd.taskerpluginlibrary.input.TaskerInput
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultCondition
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultConditionSatisfied
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultConditionUnsatisfied
+import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginRunner
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import me.jhot.meld.MeldApplication
+import me.jhot.meld.R
 
 /** Pure function — also called directly in unit tests. */
 internal fun evaluateCondition(activeIds: Set<Long>, modeId: Long?, direction: StateDirection): Boolean {
@@ -19,6 +21,14 @@ internal fun evaluateCondition(activeIds: Set<Long>, modeId: Long?, direction: S
 }
 
 class ModeStateRunner : TaskerPluginRunnerConditionState<ModeStateInput, Unit>() {
+    override val notificationProperties get() = TaskerPluginRunner.NotificationProperties(
+        R.string.tasker_condition_mode_state,
+        R.string.tasker_condition_mode_state,
+        R.string.tasker_condition_mode_state,
+        R.string.tasker_condition_mode_state,
+        R.drawable.ic_launcher_foreground,
+    )
+
     override fun getSatisfiedCondition(
         context: Context,
         input: TaskerInput<ModeStateInput>,
