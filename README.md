@@ -2,6 +2,13 @@
 
 Android mode manager for automation tools. Define named collections of device settings ("modes") and activate or deactivate them individually — Meld resolves conflicts and always applies the correct combined settings.
 
+<p align="center">
+  <img src="docs/screenshots/1.png" width="23%">
+  <img src="docs/screenshots/2.png" width="23%">
+  <img src="docs/screenshots/3.png" width="23%">
+  <img src="docs/screenshots/4.png" width="23%">
+</p>
+
 [Download from Releases](https://codeberg.org/jhot/meld/releases)
 
 Requires Android 12 (API 31) or later.
@@ -36,7 +43,7 @@ Meld needs three permissions to control device settings. Open **Settings** in th
 
 ### WRITE_SETTINGS
 
-Required for: brightness, screen timeout, screen rotation.
+Required for: volumes (notification and media), brightness, ringer mode, screen rotation, and display timeout.
 
 1. Tap **Grant** next to Write Settings in the app
 2. Enable **Modify system settings** for Meld in the system dialog
@@ -50,7 +57,7 @@ Required for: Do Not Disturb mode.
 
 ### WRITE_SECURE_SETTINGS
 
-Required for: dark mode, night light, immersive mode, grayscale, extra dim, location, keyboard vibration.
+Required for: dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, location mode, and Bluetooth.
 
 This permission cannot be granted from a dialog. Use ADB or Shizuku.
 
@@ -61,6 +68,17 @@ adb shell pm grant me.jhot.meld android.permission.WRITE_SECURE_SETTINGS
 
 **Via Shizuku:**
 If [Shizuku](https://shizuku.rikka.app/) is running on your device, tap **Grant via Shizuku** in the Settings screen. Shizuku must be set up separately — see its documentation.
+
+### Settings that also require Shizuku
+
+Some settings need Shizuku even after WRITE_SECURE_SETTINGS is granted, because Android restricts direct writes for them:
+
+- **Bluetooth** — always requires Shizuku; Meld toggles it via a privileged system API
+- **Extra Dim** — requires Shizuku on Android 12+ (the setting is restricted to system apps)
+- **Keyboard Vibration** — requires Shizuku on devices where the OEM blocks direct writes
+- **Media Volume at maximum** — requires Shizuku to bypass Android's safe media volume limit
+
+If Shizuku is not available, these settings are silently skipped.
 
 ## Usage from Tasker
 
@@ -76,7 +94,7 @@ In Tasker: add an action → Plugin → Meld → select the action → choose a 
 
 ### State Condition
 
-**Mode Active?** — evaluates to true when a specific mode is currently active. Use this in Tasker profiles as a condition, or in tasks to branch on mode state.
+**Meld - Mode State** — evaluates to true when a specific mode is currently active. Use this in Tasker profiles as a condition, or in tasks to branch on mode state.
 
 ### Events
 
