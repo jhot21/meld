@@ -42,7 +42,10 @@ open class BluetoothLifecycleManager(
                 if (!shizuku) return@collect
                 if (btState != BluetoothAdapter.STATE_ON && btState != BluetoothAdapter.STATE_OFF) return@collect
                 val isOn = btState == BluetoothAdapter.STATE_ON
-                if (desired == isOn) return@collect
+                if (desired == isOn) {
+                    _desired.value = null  // already satisfied — one-shot, step back
+                    return@collect
+                }
 
                 val withinCooldown = clock() - lastToggleMs < TOGGLE_COOLDOWN_MS
                 val sameDirection = desired == lastToggleDir

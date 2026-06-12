@@ -115,6 +115,25 @@ class BluetoothLifecycleManagerTest {
     }
 
     @Test
+    fun `desired cleared when BT already in desired state so user can override freely`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val toggler = FakeBluetoothToggler()
+            val btState = MutableStateFlow(BluetoothAdapter.STATE_ON)
+            val shizuku = MutableStateFlow(true)
+            val manager = makeManager(toggler, btState, shizuku, UnconfinedTestDispatcher())
+
+            // Mode applied with BT already ON — no toggle needed, but desired must be cleared
+            manager.setDesired(true)
+            assertTrue(toggler.calls.isEmpty())
+
+            // User turns BT off — Meld must not fight it
+            btState.value = BluetoothAdapter.STATE_TURNING_OFF
+            btState.value = BluetoothAdapter.STATE_OFF
+
+            assertTrue(toggler.calls.isEmpty())
+        }
+
+    @Test
     fun `desired=null after previous desired clears active intent`() =
         runTest(UnconfinedTestDispatcher()) {
             val toggler = FakeBluetoothToggler()
@@ -206,9 +225,8 @@ class BluetoothLifecycleManagerTest {
 
             fakeTime = 10_001L
 
+            // Failed enable — BT starts turning on but reverts; never reaches STATE_ON
             btState.value = BluetoothAdapter.STATE_TURNING_ON
-            btState.value = BluetoothAdapter.STATE_ON
-            btState.value = BluetoothAdapter.STATE_TURNING_OFF
             btState.value = BluetoothAdapter.STATE_OFF
 
             assertEquals(listOf(true, true), toggler.calls)
