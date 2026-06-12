@@ -12,11 +12,13 @@ class ShizukuService : IShizukuService.Stub() {
         exec("pm", "grant", packageName, "android.permission.WRITE_SECURE_SETTINGS")
     }
 
-    override fun putSetting(namespace: String, key: String, value: Int) {
-        require(namespace in setOf("system", "secure", "global")) {
-            "Invalid settings namespace: $namespace"
+    override fun putSettings(settings: List<me.jhot.meld.service.SettingChange>) {
+        for (change in settings) {
+            require(change.namespace in setOf("system", "secure", "global")) {
+                "Invalid settings namespace: ${change.namespace}"
+            }
+            exec("settings", "put", change.namespace, change.key, change.value.toString())
         }
-        exec("settings", "put", namespace, key, value.toString())
     }
 
     override fun setBluetooth(enable: Boolean) {

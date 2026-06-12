@@ -60,11 +60,12 @@ object ShizukuGranter : BluetoothToggler {
         withShizukuService { it.setMediaVolumeDirect(volume) }
 
     /**
-     * Binds the Shizuku UserService, runs `settings put <namespace> <key> <value>`, then unbinds.
-     * Must be called from a coroutine (suspends until the service responds).
+     * Binds the Shizuku UserService, calls putSettings for all entries in [changes],
+     * then unbinds. One bind/unbind cycle regardless of list size.
+     * Must be called from a coroutine.
      */
-    suspend fun putSetting(namespace: SettingNamespace, key: String, value: Int): Boolean =
-        withShizukuService { it.putSetting(namespace.value, key, value) }
+    suspend fun putSettings(changes: List<SettingChange>): Boolean =
+        withShizukuService { it.putSettings(changes) }
 
     /**
      * Acquires the lock, binds the Shizuku UserService, runs [block], then unbinds.
