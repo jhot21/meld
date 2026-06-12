@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
@@ -18,15 +19,19 @@ import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
 private const val TAG = "BluetoothLifecycleMgr"
+private const val TOGGLE_COOLDOWN_MS = 10_000L
 
 open class BluetoothLifecycleManager(
     private val scope: CoroutineScope,
     private val toggler: BluetoothToggler,
     private val btStateSource: Flow<Int>,
     private val shizukuSource: Flow<Boolean>,
+    private val clock: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
 
     private val _desired = MutableStateFlow<Boolean?>(null)
+    private var lastToggleMs: Long = -TOGGLE_COOLDOWN_MS
+    private var lastToggleDir: Boolean? = null
 
     init {
         scope.launch {
@@ -38,6 +43,16 @@ open class BluetoothLifecycleManager(
                 if (btState != BluetoothAdapter.STATE_ON && btState != BluetoothAdapter.STATE_OFF) return@collect
                 val isOn = btState == BluetoothAdapter.STATE_ON
                 if (desired == isOn) return@collect
+
+                val withinCooldown = clock() - lastToggleMs < TOGGLE_COOLDOWN_MS
+                val sameDirection = desired == lastToggleDir
+                if (withinCooldown && sameDirection) {
+                    Log.w(TAG, "setBluetooth($desired) skipped — within ${TOGGLE_COOLDOWN_MS / 1000}s cooldown")
+                    return@collect
+                }
+
+                lastToggleMs = clock()
+                lastToggleDir = desired
                 try {
                     val ok = toggler.setBluetooth(desired)
                     if (!ok) Log.w(TAG, "setBluetooth($desired) failed")
@@ -55,7 +70,6 @@ open class BluetoothLifecycleManager(
 
 fun btAdapterStateFlow(context: Context): Flow<Int> = callbackFlow {
     val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
-    // Emit current state immediately so the manager has an initial value to act on.
     trySend(adapter?.state ?: BluetoothAdapter.STATE_OFF)
 
     val receiver = object : BroadcastReceiver() {
