@@ -128,17 +128,17 @@ class BluetoothLifecycleManagerTest {
         }
 
     @Test
-    fun `same-direction toggle within cooldown is skipped`() =
+    fun `successful toggle prevents re-triggering on BT state cycle`() =
         runTest(UnconfinedTestDispatcher()) {
-            var fakeTime = 0L
             val toggler = FakeBluetoothToggler()
             val btState = MutableStateFlow(BluetoothAdapter.STATE_ON)
             val shizuku = MutableStateFlow(true)
-            val manager = makeManager(toggler, btState, shizuku, UnconfinedTestDispatcher(), clock = { fakeTime })
+            val manager = makeManager(toggler, btState, shizuku, UnconfinedTestDispatcher())
 
             manager.setDesired(false)
             assertEquals(listOf(false), toggler.calls)
 
+            // BT cycles — desired was cleared by one-shot, no re-trigger
             btState.value = BluetoothAdapter.STATE_TURNING_OFF
             btState.value = BluetoothAdapter.STATE_OFF
             btState.value = BluetoothAdapter.STATE_TURNING_ON
@@ -148,7 +148,7 @@ class BluetoothLifecycleManagerTest {
         }
 
     @Test
-    fun `same-direction toggle after cooldown expires succeeds`() =
+    fun `setDesired re-asserts after one-shot clears desired`() =
         runTest(UnconfinedTestDispatcher()) {
             var fakeTime = 0L
             val toggler = FakeBluetoothToggler()
@@ -156,16 +156,20 @@ class BluetoothLifecycleManagerTest {
             val shizuku = MutableStateFlow(true)
             val manager = makeManager(toggler, btState, shizuku, UnconfinedTestDispatcher(), clock = { fakeTime })
 
+            // First mode apply — fires once, desired cleared
             manager.setDesired(false)
             assertEquals(listOf(false), toggler.calls)
 
-            fakeTime = 10_001L
-
+            // BT cycles back on (e.g. persist=false restart) — desired null, no re-trigger
             btState.value = BluetoothAdapter.STATE_TURNING_OFF
             btState.value = BluetoothAdapter.STATE_OFF
             btState.value = BluetoothAdapter.STATE_TURNING_ON
             btState.value = BluetoothAdapter.STATE_ON
+            assertEquals(listOf(false), toggler.calls)
 
+            // Mode re-applied (Tasker fires the mode again)
+            fakeTime = 10_001L
+            manager.setDesired(false)
             assertEquals(listOf(false, false), toggler.calls)
         }
 

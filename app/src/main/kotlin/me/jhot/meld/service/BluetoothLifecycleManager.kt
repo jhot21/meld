@@ -55,7 +55,11 @@ open class BluetoothLifecycleManager(
                 lastToggleDir = desired
                 try {
                     val ok = toggler.setBluetooth(desired)
-                    if (!ok) Log.w(TAG, "setBluetooth($desired) failed")
+                    if (ok) {
+                        _desired.value = null  // one-shot: applied once, step back and let user control BT
+                    } else {
+                        Log.w(TAG, "setBluetooth($desired) failed")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "setBluetooth($desired) threw", e)
                 }
