@@ -55,7 +55,7 @@ class ShizukuService : IShizukuService.Stub() {
         } else {
             manager.javaClass
                 .getMethod("disable", android.content.AttributionSource::class.java, Boolean::class.javaPrimitiveType)
-                .invoke(manager, source, true)
+                .invoke(manager, source, false)  // persist=false: transient disable, leaves BLUETOOTH_ON=1
         }
     }
 
