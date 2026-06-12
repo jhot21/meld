@@ -14,5 +14,7 @@ local.properties
 app/build/
 meld-release-key.jks
 docs/superpowers/
+docs/specs/
+docs/plans/
 logcat.txt
 .task/
