@@ -203,7 +203,7 @@ fun GlobalSettingsScreen(navController: NavController) {
             // WRITE_SECURE_SETTINGS
             PermissionCard(
                 title = "Write secure settings",
-                description = "Required for dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, location mode, and Bluetooth. Must be granted via ADB or Shizuku.",
+                description = "Required for dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, and location mode. Must be granted via ADB or Shizuku.",
                 granted = secureSettingsGranted,
             ) {
                 Column {

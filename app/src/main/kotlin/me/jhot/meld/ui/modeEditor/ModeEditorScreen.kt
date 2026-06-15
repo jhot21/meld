@@ -482,17 +482,6 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                         enabled = secureGranted,
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-
-                SecureSettingWrapper(label = "Bluetooth", secureGranted = secureGranted) {
-                    NullableSegmentedButtonRow(
-                        options = listOf(true, false),
-                        selected = settings.bluetooth,
-                        onSelect = { updateSettings { copy(bluetooth = it) } },
-                        labelFor = { if (it) "ON" else "OFF" },
-                        enabled = secureGranted,
-                    )
-                }
             }
 
             Spacer(Modifier.height(32.dp))
