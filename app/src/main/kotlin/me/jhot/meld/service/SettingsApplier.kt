@@ -18,7 +18,6 @@ class SettingsApplier(
     private val permissionChecker: PermissionChecker,
     private val overrideSessionStore: OverrideSessionStore,
     private val applicationScope: CoroutineScope,
-    private val btLifecycleManager: BluetoothLifecycleManager,
 ) {
 
     fun apply(settings: ModeSettings) {
@@ -39,7 +38,6 @@ class SettingsApplier(
                 if (!ok) Log.w(TAG, "Shizuku putSettings failed for ${shizukuChanges.size} change(s)")
             }
         }
-        btLifecycleManager.setDesired(settings.bluetooth)
     }
 
     // ---- Media volume override logic ----------------------------------------
