@@ -16,7 +16,7 @@ import kotlin.coroutines.resume
 
 private const val SHIZUKU_TIMEOUT_MS = 5_000L
 
-object ShizukuGranter : BluetoothToggler {
+object ShizukuGranter {
 
     // Serializes all bind/unbind cycles so concurrent Shizuku calls don't race each other.
     private val lock = Mutex()
@@ -43,13 +43,6 @@ object ShizukuGranter : BluetoothToggler {
      */
     suspend fun grantSecureSettings(packageName: String): Boolean =
         withShizukuService { it.grantSecureSettings(packageName) }
-
-    /**
-     * Binds the Shizuku UserService, runs `cmd bluetooth_manager enable/disable`, then unbinds.
-     * Must be called from a coroutine (suspends until the service responds).
-     */
-    override suspend fun setBluetooth(enable: Boolean): Boolean =
-        withShizukuService { it.setBluetooth(enable) }
 
     /**
      * Binds the Shizuku UserService, calls AudioSystem.setStreamVolumeIndex via reflection
