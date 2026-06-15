@@ -16,9 +16,6 @@ import kotlinx.coroutines.SupervisorJob
 import me.jhot.meld.data.db.ActiveDatabase
 import me.jhot.meld.data.db.MeldDatabase
 import me.jhot.meld.receiver.NtfyReceiver
-import me.jhot.meld.service.BluetoothLifecycleManager
-import me.jhot.meld.service.btAdapterStateFlow
-import me.jhot.meld.service.shizukuAvailableFlow
 import me.jhot.meld.service.ImportExportService
 import me.jhot.meld.service.MeldForegroundService
 import me.jhot.meld.service.ModeRepository
@@ -50,17 +47,8 @@ class MeldApplication : Application() {
 
     val permissionChecker: PermissionChecker by lazy { PermissionChecker(this) }
 
-    val btLifecycleManager: BluetoothLifecycleManager by lazy {
-        BluetoothLifecycleManager(
-            scope = applicationScope,
-            toggler = ShizukuGranter,
-            btStateSource = btAdapterStateFlow(this),
-            shizukuSource = shizukuAvailableFlow(),
-        )
-    }
-
     val settingsApplier: SettingsApplier by lazy {
-        SettingsApplier(this, permissionChecker, overrideSessionStore, applicationScope, btLifecycleManager)
+        SettingsApplier(this, permissionChecker, overrideSessionStore, applicationScope)
     }
 
     val modeRepository: ModeRepository by lazy {
