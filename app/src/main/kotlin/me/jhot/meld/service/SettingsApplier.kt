@@ -89,13 +89,15 @@ class SettingsApplier(
 
     private fun setMediaVolume(volume: Int) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-        if (ShizukuGranter.hasPermission()) {
-            if (am.getStreamVolume(AudioManager.STREAM_MUSIC) == volume) return
+        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) == volume) return
+        // Set through AudioService so its Java state and the native layer stay in sync.
+        // A direct native call via setStreamVolumeIndexAS causes AudioService to detect the
+        // discrepancy and sync back to its cached value, fighting the change.
+        // Safe-media-volume may cap this on headphone outputs; if the target wasn't reached,
+        // the Shizuku fallback disables the safe-volume gate and sets the native level directly.
+        am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume && ShizukuGranter.hasPermission()) {
             pendingMediaVolume.trySend(volume)
-            return
-        }
-        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume) {
-            am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
         }
     }
 
