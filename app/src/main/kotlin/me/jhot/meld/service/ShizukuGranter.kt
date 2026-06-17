@@ -74,6 +74,7 @@ object ShizukuGranter {
     private suspend fun withShizukuService(block: (IShizukuService) -> Unit): Boolean =
         lock.withLock {
             var connection: ServiceConnection? = null
+            var unbindPosted = false
             val result = runCatching {
                 withTimeout(SHIZUKU_TIMEOUT_MS) {
                     suspendCancellableCoroutine { cont ->
@@ -94,6 +95,7 @@ object ShizukuGranter {
                         }
                         connection = conn
                         cont.invokeOnCancellation {
+                            unbindPosted = true
                             mainHandler.post {
                                 try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
                             }
@@ -112,9 +114,11 @@ object ShizukuGranter {
                     }
                 }
             }
-            connection?.let { conn ->
-                mainHandler.post {
-                    try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
+            if (!unbindPosted) {
+                connection?.let { conn ->
+                    mainHandler.post {
+                        try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
+                    }
                 }
             }
             result.getOrDefault(false)
