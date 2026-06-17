@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.mockk.mockk
 import io.mockk.every
 import io.mockk.verify
+import me.jhot.meld.MeldApplication
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -23,6 +24,8 @@ class BootReceiverTest {
     fun onReceive_bootCompleted_startsforegroundService() {
         val receiver = BootReceiver()
         val context = mockk<Context>(relaxed = true)
+        val app = mockk<MeldApplication>(relaxed = true)
+        every { context.applicationContext } returns app
         val intent = mockk<Intent>()
         every { intent.action } returns Intent.ACTION_LOCKED_BOOT_COMPLETED
 
