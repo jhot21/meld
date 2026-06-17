@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import me.jhot.meld.data.model.*
 
@@ -19,6 +20,31 @@ class SettingsApplier(
     private val overrideSessionStore: OverrideSessionStore,
     private val applicationScope: CoroutineScope,
 ) {
+    private val pendingSecureSettings = Channel<List<SettingChange>>(Channel.CONFLATED)
+    private val pendingMediaVolume = Channel<Int>(Channel.CONFLATED)
+
+    init {
+        applicationScope.launch {
+            for (changes in pendingSecureSettings) {
+                try {
+                    val ok = ShizukuGranter.putSettings(changes)
+                    if (!ok) Log.w(TAG, "Shizuku putSettings failed for ${changes.size} change(s)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error in putSettings consumer", e)
+                }
+            }
+        }
+        applicationScope.launch {
+            for (volume in pendingMediaVolume) {
+                try {
+                    val ok = ShizukuGranter.setMediaVolumeDirect(volume)
+                    if (!ok) Log.w(TAG, "Shizuku setMediaVolumeDirect($volume) failed")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error in setMediaVolumeDirect consumer", e)
+                }
+            }
+        }
+    }
 
     fun apply(settings: ModeSettings) {
         applyMediaVolumeWithOverride(settings)
@@ -33,10 +59,7 @@ class SettingsApplier(
             shizukuChanges += applySecureSettings(settings)
         }
         if (shizukuChanges.isNotEmpty()) {
-            applicationScope.launch {
-                val ok = ShizukuGranter.putSettings(shizukuChanges)
-                if (!ok) Log.w(TAG, "Shizuku putSettings failed for ${shizukuChanges.size} change(s)")
-            }
+            pendingSecureSettings.trySend(shizukuChanges)
         }
     }
 
@@ -68,10 +91,7 @@ class SettingsApplier(
         val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
         if (ShizukuGranter.hasPermission()) {
             if (am.getStreamVolume(AudioManager.STREAM_MUSIC) == volume) return
-            applicationScope.launch {
-                val ok = ShizukuGranter.setMediaVolumeDirect(volume)
-                if (!ok) Log.w(TAG, "Shizuku setMediaVolumeDirect($volume) failed")
-            }
+            pendingMediaVolume.trySend(volume)
             return
         }
         if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume) {
