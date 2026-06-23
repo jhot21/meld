@@ -78,8 +78,25 @@ object ShizukuGranter {
             val result = runCatching {
                 withTimeout(SHIZUKU_TIMEOUT_MS) {
                     suspendCancellableCoroutine { cont ->
+                        // Runs [block] at most once per connection. Shizuku delivers
+                        // onServiceConnected to EVERY connection still registered for these
+                        // serviceArgs whenever the service (re)connects. If a previous call's
+                        // connection was not removed in time, a later bind re-delivers
+                        // onServiceConnected to it — which would re-run that call's stale block
+                        // (e.g. an old keyboard_vibration value) against the new service
+                        // instance. The guard makes such a re-delivery a no-op and unbinds the
+                        // stale connection so it stops being re-delivered.
+                        val handled = java.util.concurrent.atomic.AtomicBoolean(false)
                         val conn = object : ServiceConnection {
                             override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                                if (!handled.compareAndSet(false, true)) {
+                                    mainHandler.post {
+                                        connection?.let {
+                                            try { Shizuku.unbindUserService(serviceArgs, it, true) } catch (_: Exception) {}
+                                        }
+                                    }
+                                    return
+                                }
                                 val success = try {
                                     block(IShizukuService.Stub.asInterface(binder))
                                     true
