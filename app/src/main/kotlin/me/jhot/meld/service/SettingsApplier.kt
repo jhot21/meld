@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import me.jhot.meld.data.model.*
 
@@ -18,8 +19,32 @@ class SettingsApplier(
     private val permissionChecker: PermissionChecker,
     private val overrideSessionStore: OverrideSessionStore,
     private val applicationScope: CoroutineScope,
-    private val btLifecycleManager: BluetoothLifecycleManager,
 ) {
+    private val pendingSecureSettings = Channel<List<SettingChange>>(Channel.CONFLATED)
+    private val pendingMediaVolume = Channel<Int>(Channel.CONFLATED)
+
+    init {
+        applicationScope.launch {
+            for (changes in pendingSecureSettings) {
+                try {
+                    val ok = ShizukuGranter.putSettings(changes)
+                    if (!ok) Log.w(TAG, "Shizuku putSettings failed for ${changes.size} change(s)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error in putSettings consumer", e)
+                }
+            }
+        }
+        applicationScope.launch {
+            for (volume in pendingMediaVolume) {
+                try {
+                    val ok = ShizukuGranter.setMediaVolumeDirect(volume)
+                    if (!ok) Log.w(TAG, "Shizuku setMediaVolumeDirect($volume) failed")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error in setMediaVolumeDirect consumer", e)
+                }
+            }
+        }
+    }
 
     fun apply(settings: ModeSettings) {
         applyMediaVolumeWithOverride(settings)
@@ -29,10 +54,13 @@ class SettingsApplier(
         if (permissionChecker.canWriteNotificationPolicy()) {
             applyDnd(settings)
         }
+        val shizukuChanges = mutableListOf<SettingChange>()
         if (permissionChecker.canWriteSecureSettings()) {
-            applySecureSettings(settings)
+            shizukuChanges += applySecureSettings(settings)
         }
-        btLifecycleManager.setDesired(settings.bluetooth)
+        if (shizukuChanges.isNotEmpty()) {
+            pendingSecureSettings.trySend(shizukuChanges)
+        }
     }
 
     // ---- Media volume override logic ----------------------------------------
@@ -44,22 +72,16 @@ class SettingsApplier(
 
         when {
             !overrideActive && overrideSessionStore.isActive() -> {
-                // Override just ended — clear session and apply normally
                 overrideSessionStore.clear()
                 settings.volumeMedia?.let { setMediaVolume(it) }
             }
             overrideActive && !overrideSessionStore.isActive() -> {
-                // Override just started — apply once and lock
                 settings.volumeMedia?.let { setMediaVolume(it) }
                 overrideSessionStore.setActive()
             }
             overrideActive && overrideSessionStore.isActive() -> {
-                // Override session in progress — do nothing
-                // Note: all Meld-driven and manual volume changes are ignored
-                // while an override session is active. See user documentation.
             }
             else -> {
-                // Normal (no override) — apply if set
                 settings.volumeMedia?.let { setMediaVolume(it) }
             }
         }
@@ -67,20 +89,15 @@ class SettingsApplier(
 
     private fun setMediaVolume(volume: Int) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume) {
-            am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
-        }
-        // AudioService enforces safe media volume entirely in its Java layer — writing
-        // audio_safe_volume_state to global settings has no runtime effect (AudioService
-        // registers no ContentObserver on that key). The only reliable bypass is to call
-        // AudioSystem.setStreamVolumeIndex() directly, which routes to AudioPolicyService
-        // (native) — that layer has no safe volume check at all.
-        // We do this via Shizuku whenever setting to the device maximum.
-        if (volume == am.getStreamMaxVolume(AudioManager.STREAM_MUSIC) && ShizukuGranter.hasPermission()) {
-            applicationScope.launch {
-                val ok = ShizukuGranter.setMediaVolumeDirect(volume)
-                if (!ok) Log.w(TAG, "Shizuku setMediaVolumeDirect($volume) failed")
-            }
+        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) == volume) return
+        // Set through AudioService so its Java state and the native layer stay in sync.
+        // A direct native call via setStreamVolumeIndexAS causes AudioService to detect the
+        // discrepancy and sync back to its cached value, fighting the change.
+        // Safe-media-volume may cap this on headphone outputs; if the target wasn't reached,
+        // the Shizuku fallback disables the safe-volume gate and sets the native level directly.
+        am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+        if (am.getStreamVolume(AudioManager.STREAM_MUSIC) != volume && ShizukuGranter.hasPermission()) {
+            pendingMediaVolume.trySend(volume)
         }
     }
 
@@ -145,10 +162,11 @@ class SettingsApplier(
         }
     }
 
-    // ---- WRITE_SECURE_SETTINGS settings -------------------------------------
+    // ---- WRITE_SECURE_SETTINGS settings — returns pending Shizuku writes ----
 
-    private fun applySecureSettings(settings: ModeSettings) {
+    private fun applySecureSettings(settings: ModeSettings): List<SettingChange> {
         val resolver = context.contentResolver
+        val pending = mutableListOf<SettingChange>()
 
         settings.darkMode?.let {
             resolver.putSecureIntIfChanged("ui_night_mode", if (it) 2 else 1)
@@ -159,17 +177,12 @@ class SettingsApplier(
         }
 
         settings.extraDim?.let { enable ->
-            // reduce_bright_colors_activated is restricted to system apps on Android 12+;
-            // direct read/write via Settings.Secure will fail — fall back to Shizuku.
             val value = if (enable) 1 else 0
             try {
                 Settings.Secure.putInt(resolver, "reduce_bright_colors_activated", value)
             } catch (e: SecurityException) {
                 if (ShizukuGranter.hasPermission()) {
-                    applicationScope.launch {
-                        val ok = ShizukuGranter.putSetting(SettingNamespace.SECURE, "reduce_bright_colors_activated", value)
-                        if (!ok) Log.w(TAG, "Shizuku fallback for reduce_bright_colors_activated failed")
-                    }
+                    pending += SettingChange("secure", "reduce_bright_colors_activated", value)
                 }
             }
         }
@@ -200,14 +213,7 @@ class SettingsApplier(
                 }
             } catch (e: Exception) {
                 if (ShizukuGranter.hasPermission()) {
-                    applicationScope.launch {
-                        // Re-check inside the coroutine so a queued write doesn't
-                        // clobber a value already applied by an earlier launch.
-                        if (Settings.System.getInt(resolver, KEY_KEYBOARD_VIBRATION, -1) != value) {
-                            val ok = ShizukuGranter.putSetting(SettingNamespace.SYSTEM, KEY_KEYBOARD_VIBRATION, value)
-                            if (!ok) Log.w(TAG, "Shizuku fallback for $KEY_KEYBOARD_VIBRATION failed")
-                        }
-                    }
+                    pending += SettingChange("system", KEY_KEYBOARD_VIBRATION, value)
                 }
             }
         }
@@ -225,6 +231,8 @@ class SettingsApplier(
             }
             resolver.putSecureIntIfChanged("location_mode", value)
         }
+
+        return pending
     }
 
     // ---- ContentResolver helpers -------------------------------------------
@@ -248,8 +256,6 @@ class SettingsApplier(
     }
 
     private fun ContentResolver.putGlobalStringIfChanged(key: String, value: String) {
-        // getString returns null for unset keys; null != any non-null value, so a
-        // missing key always triggers the write — which is the correct behaviour.
         if (Settings.Global.getString(this, key) != value) {
             Settings.Global.putString(this, key, value)
         }

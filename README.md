@@ -57,7 +57,7 @@ Required for: Do Not Disturb mode.
 
 ### WRITE_SECURE_SETTINGS
 
-Required for: dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, location mode, and Bluetooth.
+Required for: dark mode, night light, extra dim, immersive mode, grayscale, haptic feedback, battery saver, and location mode.
 
 This permission cannot be granted from a dialog. Use ADB or Shizuku.
 
@@ -73,7 +73,6 @@ If [Shizuku](https://shizuku.rikka.app/) is running on your device, tap **Grant 
 
 Some settings need Shizuku even after WRITE_SECURE_SETTINGS is granted, because Android restricts direct writes for them:
 
-- **Bluetooth** — always requires Shizuku; Meld toggles it via a privileged system API
 - **Extra Dim** — requires Shizuku on Android 12+ (the setting is restricted to system apps)
 - **Keyboard Vibration** — requires Shizuku on devices where the OEM blocks direct writes
 - **Media Volume at maximum** — requires Shizuku to bypass Android's safe media volume limit

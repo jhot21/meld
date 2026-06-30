@@ -4,9 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import me.jhot.meld.MeldApplication
 
 /**
@@ -45,13 +46,17 @@ class NtfyReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         val app = context.applicationContext as MeldApplication
 
-        CoroutineScope(Dispatchers.IO).launch {
+        app.applicationScope.launch(Dispatchers.IO) {
             try {
-                if (active) {
-                    app.modeRepository.addToContext(message)
-                } else {
-                    app.modeRepository.removeFromContext(message)
+                withTimeout(15_000L) {
+                    if (active) {
+                        app.modeRepository.addToContext(message)
+                    } else {
+                        app.modeRepository.removeFromContext(message)
+                    }
                 }
+            } catch (e: TimeoutCancellationException) {
+                Log.w("NtfyReceiver", "Mode context update timed out")
             } catch (e: Exception) {
                 Log.e("NtfyReceiver", "Failed to update mode context", e)
             } finally {

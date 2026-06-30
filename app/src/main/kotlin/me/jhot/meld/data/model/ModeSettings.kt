@@ -28,7 +28,6 @@ data class ModeSettings(
     val keyboardVibration: Boolean? = null,
     val batterySaver: Boolean? = null,
     val locationMode: LocationMode? = null,
-    val bluetooth: Boolean? = null,
 )
 
 /** Merges two ModeSettings — non-null values in [other] win over values in [this]. */
@@ -51,7 +50,6 @@ fun ModeSettings.mergeWith(other: ModeSettings) = ModeSettings(
     keyboardVibration = other.keyboardVibration ?: keyboardVibration,
     batterySaver = other.batterySaver ?: batterySaver,
     locationMode = other.locationMode ?: locationMode,
-    bluetooth = other.bluetooth ?: bluetooth,
 )
 
 class ModeSettingsConverter {

@@ -16,7 +16,7 @@ import kotlin.coroutines.resume
 
 private const val SHIZUKU_TIMEOUT_MS = 5_000L
 
-object ShizukuGranter : BluetoothToggler {
+object ShizukuGranter {
 
     // Serializes all bind/unbind cycles so concurrent Shizuku calls don't race each other.
     private val lock = Mutex()
@@ -45,13 +45,6 @@ object ShizukuGranter : BluetoothToggler {
         withShizukuService { it.grantSecureSettings(packageName) }
 
     /**
-     * Binds the Shizuku UserService, runs `cmd bluetooth_manager enable/disable`, then unbinds.
-     * Must be called from a coroutine (suspends until the service responds).
-     */
-    override suspend fun setBluetooth(enable: Boolean): Boolean =
-        withShizukuService { it.setBluetooth(enable) }
-
-    /**
      * Binds the Shizuku UserService, calls AudioSystem.setStreamVolumeIndex via reflection
      * to set STREAM_MUSIC volume below AudioService's Java-layer safe volume check, then unbinds.
      * Must be called from a coroutine (suspends until the service responds).
@@ -60,11 +53,12 @@ object ShizukuGranter : BluetoothToggler {
         withShizukuService { it.setMediaVolumeDirect(volume) }
 
     /**
-     * Binds the Shizuku UserService, runs `settings put <namespace> <key> <value>`, then unbinds.
-     * Must be called from a coroutine (suspends until the service responds).
+     * Binds the Shizuku UserService, calls putSettings for all entries in [changes],
+     * then unbinds. One bind/unbind cycle regardless of list size.
+     * Must be called from a coroutine.
      */
-    suspend fun putSetting(namespace: SettingNamespace, key: String, value: Int): Boolean =
-        withShizukuService { it.putSetting(namespace.value, key, value) }
+    suspend fun putSettings(changes: List<SettingChange>): Boolean =
+        withShizukuService { it.putSettings(changes) }
 
     /**
      * Acquires the lock, binds the Shizuku UserService, runs [block], then unbinds.
@@ -80,11 +74,29 @@ object ShizukuGranter : BluetoothToggler {
     private suspend fun withShizukuService(block: (IShizukuService) -> Unit): Boolean =
         lock.withLock {
             var connection: ServiceConnection? = null
+            var unbindPosted = false
             val result = runCatching {
                 withTimeout(SHIZUKU_TIMEOUT_MS) {
                     suspendCancellableCoroutine { cont ->
+                        // Runs [block] at most once per connection. Shizuku delivers
+                        // onServiceConnected to EVERY connection still registered for these
+                        // serviceArgs whenever the service (re)connects. If a previous call's
+                        // connection was not removed in time, a later bind re-delivers
+                        // onServiceConnected to it — which would re-run that call's stale block
+                        // (e.g. an old keyboard_vibration value) against the new service
+                        // instance. The guard makes such a re-delivery a no-op and unbinds the
+                        // stale connection so it stops being re-delivered.
+                        val handled = java.util.concurrent.atomic.AtomicBoolean(false)
                         val conn = object : ServiceConnection {
                             override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                                if (!handled.compareAndSet(false, true)) {
+                                    mainHandler.post {
+                                        connection?.let {
+                                            try { Shizuku.unbindUserService(serviceArgs, it, true) } catch (_: Exception) {}
+                                        }
+                                    }
+                                    return
+                                }
                                 val success = try {
                                     block(IShizukuService.Stub.asInterface(binder))
                                     true
@@ -100,6 +112,7 @@ object ShizukuGranter : BluetoothToggler {
                         }
                         connection = conn
                         cont.invokeOnCancellation {
+                            unbindPosted = true
                             mainHandler.post {
                                 try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
                             }
@@ -118,9 +131,11 @@ object ShizukuGranter : BluetoothToggler {
                     }
                 }
             }
-            connection?.let { conn ->
-                mainHandler.post {
-                    try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
+            if (!unbindPosted) {
+                connection?.let { conn ->
+                    mainHandler.post {
+                        try { Shizuku.unbindUserService(serviceArgs, conn, true) } catch (_: Exception) {}
+                    }
                 }
             }
             result.getOrDefault(false)

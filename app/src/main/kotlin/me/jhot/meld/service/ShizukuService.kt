@@ -1,5 +1,6 @@
 package me.jhot.meld.service
 
+import android.annotation.SuppressLint
 import me.jhot.meld.IShizukuService
 
 /**
@@ -12,78 +13,72 @@ class ShizukuService : IShizukuService.Stub() {
         exec("pm", "grant", packageName, "android.permission.WRITE_SECURE_SETTINGS")
     }
 
-    override fun putSetting(namespace: String, key: String, value: Int) {
-        require(namespace in setOf("system", "secure", "global")) {
-            "Invalid settings namespace: $namespace"
-        }
-        exec("settings", "put", namespace, key, value.toString())
-    }
-
-    override fun setBluetooth(enable: Boolean) {
-        try {
-            setBluetoothDirect(enable)
-        } catch (e: Exception) {
-            android.util.Log.w("ShizukuService", "setBluetoothDirect failed, falling back to cmd: ${e.message}")
-            val action = if (enable) "enable" else "disable"
-            exec("cmd", "bluetooth_manager", action)
+    override fun putSettings(settings: List<me.jhot.meld.service.SettingChange>) {
+        for (change in settings) {
+            require(change.namespace in setOf("system", "secure", "global")) {
+                "Invalid settings namespace: ${change.namespace}"
+            }
+            exec("settings", "put", change.namespace, change.key, change.value.toString())
         }
     }
 
-    // Calls IBluetoothManager.enable()/disable() directly via reflection rather than spawning
-    // a `cmd bluetooth_manager` subprocess. Avoids subprocess lifecycle races (fork → JVM start
-    // → binder connect → call → exit) that can interact poorly with the BT state machine.
-    // AttributionSource uses our UID (shell under Shizuku); persist=true matches
-    // BluetoothAdapter.disable() default so the stack treats it as a user-intent disable.
-    private fun setBluetoothDirect(enable: Boolean) {
-        val binder = Class.forName("android.os.ServiceManager")
-            .getDeclaredMethod("getService", String::class.java)
-            .invoke(null, "bluetooth_manager") as? android.os.IBinder
-            ?: throw IllegalStateException("bluetooth_manager service not found")
-
-        val stub = Class.forName("android.bluetooth.IBluetoothManager\$Stub")
-        val manager = stub.getDeclaredMethod("asInterface", android.os.IBinder::class.java)
-            .invoke(null, binder)!!
-
-        val source = android.content.AttributionSource.Builder(android.os.Process.myUid())
-            .setPackageName("shell")
-            .build()
-
-        if (enable) {
-            manager.javaClass
-                .getMethod("enable", android.content.AttributionSource::class.java)
-                .invoke(manager, source)
-        } else {
-            manager.javaClass
-                .getMethod("disable", android.content.AttributionSource::class.java, Boolean::class.javaPrimitiveType)
-                .invoke(manager, source, true)
-        }
-    }
-
+    // Reflection targets a hidden API (setStreamVolumeIndexAS). This runs inside the Shizuku
+    // service process as ADB UID (2000), which is exempt from hidden-API restrictions at runtime.
+    @SuppressLint("BlockedPrivateApi")
     override fun setMediaVolumeDirect(volume: Int) {
-        // AudioService.java enforces safe media volume in-memory and rejects setStreamVolume
-        // calls that exceed the safe threshold. AudioPolicyService (native) has no such check.
-        // Calling AudioSystem.setStreamVolumeIndex via reflection bypasses the Java layer
-        // entirely and sets the volume directly in the audio policy engine.
-        // ADB UID (what Shizuku runs as) is exempt from hidden API restrictions, so
-        // setAccessible(true) succeeds and the method is callable without StrictMode blocks.
+        // Only reaches here when AudioService's safe-media-volume cap prevented am.setStreamVolume
+        // from reaching the target (e.g. headphones plugged in). Strategy:
+        //  1. Disable the safe-volume gate via Settings.Global so AudioService stops capping.
+        //  2. Wait for AudioService's ContentObserver to pick up the change (~100 ms).
+        //  3. Set the native volume directly via AudioSystem reflection; now AudioService won't
+        //     fight it back because its safe-volume state is disabled.
+        //  4. Restore the safe-volume state so the user's normal protection is not permanently lost.
+        //
+        // ADB UID (what Shizuku runs as) is exempt from hidden API restrictions.
+        // Android 16 added a 'muted' boolean between index and device; try 4-param first.
         try {
-            val method = Class.forName("android.media.AudioSystem")
-                .getDeclaredMethod(
-                    "setStreamVolumeIndex",
-                    Int::class.javaPrimitiveType,
-                    Int::class.javaPrimitiveType,
-                    Int::class.javaPrimitiveType,
-                )
-                .also { it.isAccessible = true }
-            val streamMusic = 3
-            // Call for every common output device type. AudioPolicyManager silently ignores
-            // device types that are not currently active; calling for all ensures whichever
-            // device safe volume is protecting gets the full index.
-            for (device in OUTPUT_DEVICES) {
-                try { method.invoke(null, streamMusic, volume, device) } catch (_: Exception) {}
+            // Step 1: read current safe-volume state so we can restore it.
+            val prevState = exec("settings", "get", "global", "safe_media_volume_state").trim()
+            val restoreValue = if (prevState == "null" || prevState.isEmpty()) "0" else prevState
+
+            // Step 2: disable safe-media-volume (SAFE_MEDIA_VOLUME_DISABLED = 1).
+            exec("settings", "put", "global", "safe_media_volume_state", "1")
+            try {
+                // Step 3: give AudioService's ContentObserver time to fire (~100 ms is enough).
+                Thread.sleep(150)
+
+                // Step 4: set native volume directly via reflection.
+                val cls = Class.forName("android.media.AudioSystem")
+                val streamMusic = 3
+                val invoker: (Int) -> Unit = try {
+                    val m = cls.getDeclaredMethod(
+                        "setStreamVolumeIndexAS",
+                        Int::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType,
+                        Boolean::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType,
+                    )
+                    val fn: (Int) -> Unit = { device -> m.invoke(null, streamMusic, volume, false, device) }
+                    fn
+                } catch (_: NoSuchMethodException) {
+                    val m = cls.getDeclaredMethod(
+                        "setStreamVolumeIndexAS",
+                        Int::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType,
+                    )
+                    val fn: (Int) -> Unit = { device -> m.invoke(null, streamMusic, volume, device) }
+                    fn
+                }
+                for (device in OUTPUT_DEVICES) {
+                    try { invoker(device) } catch (_: Exception) {}
+                }
+            } finally {
+                // Step 5: always restore safe-volume state, even if an exception occurred above.
+                exec("settings", "put", "global", "safe_media_volume_state", restoreValue)
             }
         } catch (e: Exception) {
-            android.util.Log.w("ShizukuService", "setMediaVolumeDirect reflection failed: ${e.message}")
+            android.util.Log.w("ShizukuService", "setMediaVolumeDirect failed: ${e.message}")
         }
     }
 
@@ -121,13 +116,13 @@ class ShizukuService : IShizukuService.Stub() {
      * indefinitely (only rescued by the Shizuku 5 s timeout, which returns false and
      * silently skips the setting).
      */
-    private fun exec(vararg cmd: String) {
+    private fun exec(vararg cmd: String): String =
         ProcessBuilder(*cmd)
             .redirectErrorStream(true)
             .start()
             .run {
-                inputStream.readBytes()  // drain merged stdout+stderr; blocks until process exits
+                val output = inputStream.readBytes().toString(Charsets.UTF_8)
                 waitFor()
+                output
             }
-    }
 }

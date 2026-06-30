@@ -7,9 +7,11 @@ import android.util.Log
 import com.joaomgcd.taskerpluginlibrary.action.TaskerPluginRunnerAction
 import com.joaomgcd.taskerpluginlibrary.runner.ArgsSignalFinish
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultError
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import me.jhot.meld.MeldApplication
 
 /**
  * Replaces the Tasker library's BroadcastReceiverAction + IntentServiceAction pair.
@@ -31,22 +33,33 @@ class MeldActionReceiver : BroadcastReceiver() {
         val runnerClassName = TaskerInternalBridge.getRunnerClass(bundle) ?: return
 
         val pendingResult = goAsync()
+        val app = context.applicationContext as MeldApplication
 
-        CoroutineScope(Dispatchers.IO).launch {
+        app.applicationScope.launch(Dispatchers.IO) {
             try {
-                @Suppress("UNCHECKED_CAST")
-                val runner = Class.forName(runnerClassName)
-                    .getDeclaredConstructor()
-                    .newInstance() as TaskerPluginRunnerAction<Any, Any>
+                withTimeout(15_000L) {
+                    @Suppress("UNCHECKED_CAST")
+                    val runner = Class.forName(runnerClassName)
+                        .getDeclaredConstructor()
+                        .newInstance() as TaskerPluginRunnerAction<Any, Any>
 
-                @Suppress("UNCHECKED_CAST")
-                val inputClass = runner.getInputClass(intent) as Class<Any>
-                @Suppress("UNCHECKED_CAST")
-                val input = TaskerInternalBridge.getTaskerInput(intent, context, inputClass)
-                    as com.joaomgcd.taskerpluginlibrary.input.TaskerInput<Any>
+                    @Suppress("UNCHECKED_CAST")
+                    val inputClass = runner.getInputClass(intent) as Class<Any>
+                    @Suppress("UNCHECKED_CAST")
+                    val input = TaskerInternalBridge.getTaskerInput(intent, context, inputClass)
+                        as com.joaomgcd.taskerpluginlibrary.input.TaskerInput<Any>
 
-                val result = runner.run(context, input)
-                result.signalFinish(runner.getArgsSignalFinish(context, intent, input))
+                    val result = runner.run(context, input)
+                    result.signalFinish(runner.getArgsSignalFinish(context, intent, input))
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.w(TAG, "Tasker action timed out after 15s")
+                try {
+                    TaskerPluginResultError(Exception("Meld action timed out", e))
+                        .signalFinish(ArgsSignalFinish(context, intent, null, null))
+                } catch (ignored: Exception) {
+                    // Best-effort: report error to Tasker if possible
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to execute Tasker action", e)
                 try {
