@@ -16,12 +16,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -30,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,6 +52,7 @@ import me.jhot.meld.data.model.ImmersiveMode
 import me.jhot.meld.data.model.LocationMode
 import me.jhot.meld.data.model.ModeSettings
 import me.jhot.meld.data.model.RingerMode
+import me.jhot.meld.ui.components.ExclusivityGroupChipRow
 import me.jhot.meld.ui.components.NullableSegmentedButtonRow
 import me.jhot.meld.ui.components.SettingsSection
 import me.jhot.meld.ui.components.SliderRow
@@ -69,6 +73,10 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
     val nameConflict by viewModel.nameConflict.collectAsState()
     val saveComplete by viewModel.saveComplete.collectAsState()
     val secureGranted = viewModel.secureSettingsGranted
+    val allGroups by viewModel.allGroups.collectAsState()
+    val draftGroupIds by viewModel.draftGroupIds.collectAsState()
+    var showGroupsInfo by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
 
     // Navigate back when save completes — runs on main thread via LaunchedEffect
     LaunchedEffect(saveComplete) {
@@ -171,6 +179,30 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
 
                 }
             } // end if (!isDefaultMode)
+
+            if (!isDefaultMode) {
+                SettingsSection(title = "Exclusivity Groups") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = { showGroupsInfo = true }) {
+                            Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "What are Exclusivity Groups?")
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    ExclusivityGroupChipRow(
+                        allGroups = allGroups,
+                        selectedGroupIds = draftGroupIds,
+                        onToggle = viewModel::toggleGroup,
+                        onCreate = viewModel::createAndJoinGroup,
+                        onRename = viewModel::renameGroup,
+                        onDelete = viewModel::deleteGroup,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
 
             HorizontalDivider()
 
@@ -425,6 +457,26 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
             }
 
             Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    if (showGroupsInfo) {
+        ModalBottomSheet(onDismissRequest = { showGroupsInfo = false }, sheetState = sheetState) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Exclusivity Groups", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                IconButton(onClick = { showGroupsInfo = false }) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+            Text(
+                "Modes in the same exclusivity group compete — only the highest-priority active one applies. " +
+                    "A mode can belong to multiple groups. Modes in no group always combine with the active exclusive mode(s).",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp),
+            )
         }
     }
 }

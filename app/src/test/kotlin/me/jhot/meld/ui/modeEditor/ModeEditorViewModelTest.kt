@@ -41,6 +41,7 @@ class ModeEditorViewModelTest {
         val repository = mockk<ModeRepository> {
             every { getAllModes() } returns flowOf(modes)
             every { getModeByIdNow(any()) } answers { modes.find { it.id == firstArg<Long>() } }
+            every { getAllGroups() } returns flowOf(emptyList())
         }
         val permissionChecker = mockk<PermissionChecker> {
             every { canWriteSecureSettings() } returns false
@@ -106,6 +107,7 @@ class ModeEditorViewModelTest {
     fun save_doesNotCallRepository_whenNameConflictIsTrue() {
         val repository = mockk<ModeRepository>(relaxed = true) {
             every { getAllModes() } returns flowOf(listOf(mode(1L, "Work")))
+            every { getAllGroups() } returns flowOf(emptyList())
         }
         val permissionChecker = mockk<PermissionChecker> {
             every { canWriteSecureSettings() } returns false

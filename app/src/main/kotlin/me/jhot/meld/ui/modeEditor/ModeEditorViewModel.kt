@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.jhot.meld.MeldApplication
+import me.jhot.meld.data.model.ExclusivityGroup
 import me.jhot.meld.data.model.Mode
 import me.jhot.meld.data.model.ModeSettings
 import me.jhot.meld.service.ModeRepository
@@ -63,20 +64,50 @@ class ModeEditorViewModel(
     private val _saveComplete = MutableStateFlow(false)
     val saveComplete: StateFlow<Boolean> = _saveComplete.asStateFlow()
 
+    val allGroups: StateFlow<List<ExclusivityGroup>> =
+        repository.getAllGroups().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _draftGroupIds = MutableStateFlow<Set<Long>>(emptySet())
+    val draftGroupIds: StateFlow<Set<Long>> = _draftGroupIds.asStateFlow()
+
+    fun toggleGroup(groupId: Long) {
+        _draftGroupIds.update { current ->
+            if (groupId in current) current - groupId else current + groupId
+        }
+    }
+
+    fun createAndJoinGroup(name: String) {
+        viewModelScope.launch {
+            val groupId = repository.getOrCreateGroupByName(name)
+            _draftGroupIds.update { it + groupId }
+        }
+    }
+
+    fun renameGroup(groupId: Long, name: String) {
+        viewModelScope.launch { repository.renameGroup(groupId, name) }
+    }
+
+    fun deleteGroup(groupId: Long) {
+        viewModelScope.launch {
+            repository.deleteGroup(groupId)
+            _draftGroupIds.update { it - groupId }
+        }
+    }
+
     fun loadMode(modeId: Long) {
         _saveComplete.value = false
-        // Fast path: read from in-memory cache (covers normal navigation from mode list)
         val cached = repository.getModeByIdNow(modeId)
         if (cached != null) {
             originalMode = cached
             _draft.value = cached
+            viewModelScope.launch { _draftGroupIds.value = repository.getGroupsForMode(modeId).map { it.id }.toSet() }
             return
         }
-        // Slow path: wait for first Room emission (covers cold-start deep links)
         viewModelScope.launch {
             val mode = repository.getAllModes().first().find { it.id == modeId } ?: return@launch
             originalMode = mode
             _draft.value = mode
+            _draftGroupIds.value = repository.getGroupsForMode(modeId).map { it.id }.toSet()
         }
     }
 
@@ -96,11 +127,8 @@ class ModeEditorViewModel(
         if (nameConflict.value) return
         viewModelScope.launch {
             val d = _draft.value
-            if (isNew) {
-                repository.insertMode(d)
-            } else {
-                repository.updateMode(d)
-            }
+            val modeId = if (isNew) repository.insertMode(d) else { repository.updateMode(d); d.id }
+            repository.updateModeGroups(modeId, _draftGroupIds.value.toList())
             _saveComplete.value = true
         }
     }
