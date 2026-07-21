@@ -52,6 +52,7 @@ class GlobalSettingsViewModelTest {
             importExportService = mockk(relaxed = true),
             modeRepository = mockk<ModeRepository> {
                 every { getAllModes() } returns flowOf(emptyList())
+                every { getAllGroups() } returns flowOf(emptyList())
             },
         )
     }

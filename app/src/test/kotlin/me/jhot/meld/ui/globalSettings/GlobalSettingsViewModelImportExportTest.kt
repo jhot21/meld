@@ -55,6 +55,7 @@ class GlobalSettingsViewModelImportExportTest {
         importExportService: ImportExportService = mockk(relaxed = true),
         modeRepository: ModeRepository = mockk<ModeRepository> {
             every { getAllModes() } returns flowOf(emptyList())
+            every { getAllGroups() } returns flowOf(emptyList())
         },
     ): GlobalSettingsViewModel {
         val permissionChecker = mockk<PermissionChecker> {
@@ -190,6 +191,7 @@ class GlobalSettingsViewModelImportExportTest {
         )
         val repo = mockk<ModeRepository> {
             every { getAllModes() } returns flowOf(modes)
+            every { getAllGroups() } returns flowOf(emptyList())
         }
         val vm = viewModel(modeRepository = repo)
         assertEquals(modes, vm.allModes.value)

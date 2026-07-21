@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,6 +65,11 @@ class GlobalSettingsViewModel(
 
     val allModes: StateFlow<List<Mode>> = modeRepository.getAllModes()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val allGroupsForImport: StateFlow<List<String>> =
+        modeRepository.getAllGroups()
+            .map { groups -> groups.map { it.name } }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val shizukuPermissionListener =
         rikka.shizuku.Shizuku.OnRequestPermissionResultListener { _, result ->

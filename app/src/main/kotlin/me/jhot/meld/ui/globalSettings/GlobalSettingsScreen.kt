@@ -10,6 +10,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,7 +66,7 @@ import me.jhot.meld.service.ImportResult
 private const val ADB_COMMAND =
     "adb shell pm grant me.jhot.meld android.permission.WRITE_SECURE_SETTINGS"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GlobalSettingsScreen(navController: NavController) {
     val viewModel: GlobalSettingsViewModel = viewModel(factory = GlobalSettingsViewModel.Factory)
@@ -375,6 +378,74 @@ fun GlobalSettingsScreen(navController: NavController) {
                 TextButton(onClick = { viewModel.onImportCancelled() }) {
                     Text("Cancel")
                 }
+            },
+        )
+    }
+
+    if (importResult is ImportResult.NeedsExclusivityGroupAssignment) {
+        val assignment = importResult as ImportResult.NeedsExclusivityGroupAssignment
+        val allGroups by viewModel.allGroupsForImport.collectAsState()
+        var selections by remember(assignment) {
+            mutableStateOf<Map<String, Set<String>>>(
+                assignment.legacyPrimaryNames.associateWith { name ->
+                    assignment.preselectedGroupNames[name]?.toSet() ?: emptySet()
+                }
+            )
+        }
+        var newGroupNames by remember(assignment) {
+            mutableStateOf<Map<String, String>>(assignment.legacyPrimaryNames.associateWith { "" })
+        }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.onImportCancelled() },
+            title = { Text("Assign exclusivity groups") },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text("These modes were exclusive in the old format. Choose which group(s) each belongs to:")
+                    assignment.legacyPrimaryNames.forEach { name ->
+                        Column {
+                            Text(name, style = MaterialTheme.typography.titleSmall)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                allGroups.forEach { groupName ->
+                                    FilterChip(
+                                        selected = groupName in (selections[name] ?: emptySet()),
+                                        onClick = {
+                                            val current = selections[name] ?: emptySet()
+                                            selections = selections + (name to (
+                                                if (groupName in current) current - groupName else current + groupName
+                                                ))
+                                        },
+                                        label = { Text(groupName) },
+                                    )
+                                }
+                            }
+                            OutlinedTextField(
+                                value = newGroupNames[name] ?: "",
+                                onValueChange = { newGroupNames = newGroupNames + (name to it) },
+                                label = { Text("New group") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val finalAssignments = assignment.legacyPrimaryNames.associateWith { name ->
+                        val chosen = (selections[name] ?: emptySet()).toMutableList()
+                        val newName = newGroupNames[name].orEmpty().trim()
+                        if (newName.isNotEmpty()) chosen.add(newName)
+                        chosen
+                    }
+                    viewModel.onExclusivityGroupsAssigned(finalAssignments)
+                }) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onImportCancelled() }) { Text("Cancel") }
             },
         )
     }
