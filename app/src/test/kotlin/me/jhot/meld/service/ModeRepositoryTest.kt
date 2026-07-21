@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import me.jhot.meld.data.db.dao.ActiveModeDao
+import me.jhot.meld.data.db.dao.ExclusivityGroupDao
 import me.jhot.meld.data.db.dao.ModeDao
 import me.jhot.meld.data.model.Mode
-import me.jhot.meld.data.model.ModeType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -18,7 +18,7 @@ import org.junit.Test
 class ModeRepositoryTest {
 
     private fun mode(id: Long, name: String) =
-        Mode(id = id, name = name, type = ModeType.PRIMARY, priority = 50)
+        Mode(id = id, name = name, priority = 50)
 
     private fun repository(
         modes: List<Mode>,
@@ -30,7 +30,10 @@ class ModeRepositoryTest {
         val activeModeDao = mockk<ActiveModeDao>(relaxed = true) {
             every { getActiveModeIds() } returns flowOf(emptySet())
         }
-        return ModeRepository(modeDao, activeModeDao, mockk(relaxed = true), scope)
+        val exclusivityGroupDao = mockk<ExclusivityGroupDao>(relaxed = true) {
+            every { getAllCrossRefs() } returns flowOf(emptyList())
+        }
+        return ModeRepository(modeDao, activeModeDao, exclusivityGroupDao, mockk(relaxed = true), scope)
     }
 
     @Test

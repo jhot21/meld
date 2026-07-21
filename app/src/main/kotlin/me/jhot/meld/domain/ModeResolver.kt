@@ -4,29 +4,30 @@ import me.jhot.meld.data.model.*
 
 object ModeResolver {
 
-    fun resolve(allModes: List<Mode>, activeModeIds: Set<Long>): ModeSettings {
-        val defaultSettings = allModes.find { it.type == ModeType.DEFAULT }?.settings ?: ModeSettings()
+    fun resolve(
+        allModes: List<Mode>,
+        activeModeIds: Set<Long>,
+        modeGroupIds: Map<Long, List<Long>>,
+    ): ModeSettings {
+        val defaultSettings = allModes.find { it.isDefault }?.settings ?: ModeSettings()
+        val activeModes = allModes.filter { !it.isDefault && it.id in activeModeIds }
 
-        val activeModes = allModes.filter { it.type != ModeType.DEFAULT && it.id in activeModeIds }
-        val activePrimaries = activeModes.filter { it.type == ModeType.PRIMARY }
+        fun groupsOf(mode: Mode) = modeGroupIds[mode.id] ?: emptyList()
 
-        // Winning primary: highest-priority active primary (ties broken by highest id).
-        val winningPrimary = activePrimaries.maxByOrNull { it.priority }
+        val groupWinners = activeModes
+            .flatMap { mode -> groupsOf(mode).map { groupId -> groupId to mode } }
+            .groupBy({ it.first }, { it.second })
+            .values
+            .mapNotNull { members -> members.maxByOrNull { it.priority } }
+            .toSet()
 
-        val workingSet: List<Mode> = if (winningPrimary != null) {
-            val includedSecondaries = activeModes.filter {
-                it.type == ModeType.SECONDARY
-            }
-            listOf(winningPrimary) + includedSecondaries
-        } else {
-            // No primary at all — include all active secondaries
-            activeModes.filter { it.type == ModeType.SECONDARY }
-        }
+        val ungrouped = activeModes.filter { groupsOf(it).isEmpty() }
 
-        // Sort ascending by priority; at equal priority, secondary sorts after primary (overwrites)
+        val workingSet = (groupWinners + ungrouped).distinctBy { it.id }
+
         val sorted = workingSet.sortedWith(
             compareBy<Mode> { it.priority }
-                .thenBy { if (it.type == ModeType.SECONDARY) 1 else 0 }
+                .thenBy { if (groupsOf(it).isEmpty()) 1 else 0 }
                 .thenBy { it.id }
         )
 

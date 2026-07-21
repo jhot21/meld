@@ -54,11 +54,11 @@ class TaskerBridge(private val context: Context, private val scope: CoroutineSco
 
                 for (modeId in added) {
                     val mode = modeDao.getById(modeId) ?: continue
-                    fireEvent(ModeActivatedActivity::class.java, ModeEventOutput(mode.name, mode.type.name))
+                    fireEvent(ModeActivatedActivity::class.java, ModeEventOutput(mode.name))
                 }
                 for (modeId in removed) {
                     val mode = modeDao.getById(modeId) ?: continue
-                    fireEvent(ModeDeactivatedActivity::class.java, ModeEventOutput(mode.name, mode.type.name))
+                    fireEvent(ModeDeactivatedActivity::class.java, ModeEventOutput(mode.name))
                 }
 
                 if (added.isNotEmpty() || removed.isNotEmpty()) {

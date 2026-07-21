@@ -20,7 +20,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import me.jhot.meld.data.model.Mode
 import me.jhot.meld.data.model.ModeSettings
-import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.service.ImportExportService
 import me.jhot.meld.service.ImportResult
 import me.jhot.meld.service.ModeExport
@@ -41,7 +40,6 @@ class GlobalSettingsViewModelImportExportTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        // GlobalSettingsViewModel.init calls Shizuku static methods; mock them for JVM tests.
         mockkStatic(rikka.shizuku.Shizuku::class)
         every { rikka.shizuku.Shizuku.addRequestPermissionResultListener(any()) } just Runs
         every { rikka.shizuku.Shizuku.removeRequestPermissionResultListener(any()) } returns true
@@ -75,7 +73,7 @@ class GlobalSettingsViewModelImportExportTest {
 
     @Test
     fun onExportClicked_emitsFileNameAndJson() = runTest(testDispatcher) {
-        val json = """{"exportVersion":1,"exportedAt":0,"modes":[]}"""
+        val json = """{"exportVersion":2,"exportedAt":0,"modes":[]}"""
         val svc = mockk<ImportExportService> {
             coEvery { export() } returns json
             every { exportFileName() } returns "meld-export-2026-04-06.json"
@@ -93,7 +91,7 @@ class GlobalSettingsViewModelImportExportTest {
 
     @Test
     fun onImportFilePicked_setsImportResult_toReady() = runTest {
-        val importedModes = listOf(ModeExport("Work", ModeType.PRIMARY, 50, ModeSettings()))
+        val importedModes = listOf(ModeExport("Work", isDefault = false, priority = 50, settings = ModeSettings()))
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.Ready(importedModes)
         }
@@ -106,7 +104,7 @@ class GlobalSettingsViewModelImportExportTest {
 
     @Test
     fun onImportFilePicked_setsImportResult_toConflictsDetected() = runTest {
-        val importedModes = listOf(ModeExport("Work", ModeType.PRIMARY, 50, ModeSettings()))
+        val importedModes = listOf(ModeExport("Work", isDefault = false, priority = 50, settings = ModeSettings()))
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.ConflictsDetected(importedModes, listOf("Work"))
         }
@@ -133,7 +131,7 @@ class GlobalSettingsViewModelImportExportTest {
 
     @Test
     fun onImportConfirmed_callsImportModes_andClearsResult() = runTest {
-        val importedModes = listOf(ModeExport("Work", ModeType.PRIMARY, 50, ModeSettings(brightness = 200)))
+        val importedModes = listOf(ModeExport("Work", isDefault = false, priority = 50, settings = ModeSettings(brightness = 200)))
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.Ready(importedModes)
         }
@@ -142,20 +140,20 @@ class GlobalSettingsViewModelImportExportTest {
         }
         val vm = viewModel(importExportService = svc, modeRepository = repo)
 
-        vm.onImportFilePicked(mockk<Uri>())  // sets importResult to Ready
+        vm.onImportFilePicked(mockk<Uri>())
         vm.onImportConfirmed()
 
         coVerify {
             repo.importModes(match { list ->
                 list.size == 1 && list[0].name == "Work" && list[0].settings.brightness == 200
-            })
+            }, any())
         }
         assertNull(vm.importResult.value)
     }
 
     @Test
     fun onImportConfirmed_worksWithConflictsDetectedResult() = runTest {
-        val importedModes = listOf(ModeExport("Work", ModeType.PRIMARY, 50, ModeSettings()))
+        val importedModes = listOf(ModeExport("Work", isDefault = false, priority = 50, settings = ModeSettings()))
         val svc = mockk<ImportExportService> {
             coEvery { parseImport(any()) } returns ImportResult.ConflictsDetected(importedModes, listOf("Work"))
         }
@@ -164,10 +162,10 @@ class GlobalSettingsViewModelImportExportTest {
         }
         val vm = viewModel(importExportService = svc, modeRepository = repo)
 
-        vm.onImportFilePicked(mockk<Uri>())  // sets importResult to ConflictsDetected
+        vm.onImportFilePicked(mockk<Uri>())
         vm.onImportConfirmed()
 
-        coVerify { repo.importModes(match { it.size == 1 && it[0].name == "Work" }) }
+        coVerify { repo.importModes(match { it.size == 1 && it[0].name == "Work" }, any()) }
         assertNull(vm.importResult.value)
     }
 
@@ -178,7 +176,7 @@ class GlobalSettingsViewModelImportExportTest {
         }
         val vm = viewModel(importExportService = svc)
 
-        vm.onImportFilePicked(mockk<Uri>())  // sets importResult
+        vm.onImportFilePicked(mockk<Uri>())
         vm.onImportCancelled()
 
         assertNull(vm.importResult.value)
@@ -187,8 +185,8 @@ class GlobalSettingsViewModelImportExportTest {
     @Test
     fun allModes_includesDefaultAndPrimaryModes() = runTest(testDispatcher) {
         val modes = listOf(
-            Mode(id = 1, name = "Default", type = ModeType.DEFAULT, priority = 0),
-            Mode(id = 2, name = "Work", type = ModeType.PRIMARY, priority = 50),
+            Mode(id = 1, name = "Default", isDefault = true, priority = 0),
+            Mode(id = 2, name = "Work", priority = 50),
         )
         val repo = mockk<ModeRepository> {
             every { getAllModes() } returns flowOf(modes)
@@ -199,10 +197,10 @@ class GlobalSettingsViewModelImportExportTest {
 
     @Test
     fun onIndividualExportModeSelected_emitsFileNameAndJson() = runTest(testDispatcher) {
-        val mode = Mode(id = 1, name = "Work Mode", type = ModeType.PRIMARY, priority = 50)
-        val json = """{"exportVersion":1,"exportedAt":0,"modes":[{"name":"Work Mode","type":"PRIMARY","priority":50,"settings":{}}]}"""
+        val mode = Mode(id = 1, name = "Work Mode", priority = 50)
+        val json = """{"exportVersion":2,"exportedAt":0,"modes":[{"name":"Work Mode","isDefault":false,"priority":50,"settings":{},"groupNames":[]}]}"""
         val svc = mockk<ImportExportService> {
-            every { exportSingleMode(mode) } returns json
+            coEvery { exportSingleMode(mode) } returns json
             every { singleModeExportFileName("Work Mode") } returns "meld-export-Work_Mode-2026-04-06.json"
         }
         val vm = viewModel(importExportService = svc)
@@ -218,10 +216,10 @@ class GlobalSettingsViewModelImportExportTest {
 
     @Test
     fun onIndividualExportModeSelected_emittedJson_containsOnlySelectedMode() = runTest(testDispatcher) {
-        val mode = Mode(id = 2, name = "Work", type = ModeType.PRIMARY, priority = 50)
-        val singleModeJson = """{"exportVersion":1,"exportedAt":0,"modes":[{"name":"Work","type":"PRIMARY","priority":50,"settings":{}}]}"""
+        val mode = Mode(id = 2, name = "Work", priority = 50)
+        val singleModeJson = """{"exportVersion":2,"exportedAt":0,"modes":[{"name":"Work","isDefault":false,"priority":50,"settings":{},"groupNames":[]}]}"""
         val svc = mockk<ImportExportService> {
-            every { exportSingleMode(mode) } returns singleModeJson
+            coEvery { exportSingleMode(mode) } returns singleModeJson
             every { singleModeExportFileName(any()) } returns "meld-export-Work-2026-04-06.json"
         }
         val vm = viewModel(importExportService = svc)

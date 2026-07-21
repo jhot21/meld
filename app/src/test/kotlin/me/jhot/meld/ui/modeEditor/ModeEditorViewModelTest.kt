@@ -10,7 +10,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import me.jhot.meld.data.model.Mode
-import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.PermissionChecker
 import org.junit.After
@@ -36,7 +35,7 @@ class ModeEditorViewModelTest {
     }
 
     private fun mode(id: Long, name: String) =
-        Mode(id = id, name = name, type = ModeType.PRIMARY, priority = 50)
+        Mode(id = id, name = name, priority = 50)
 
     private fun viewModel(modes: List<Mode> = emptyList()): ModeEditorViewModel {
         val repository = mockk<ModeRepository> {
@@ -52,7 +51,6 @@ class ModeEditorViewModelTest {
     @Test
     fun nameConflict_isFalse_whenNameFieldIsBlank() {
         val vm = viewModel(modes = listOf(mode(1L, "Work")))
-        // draft starts with name = ""
         assertFalse(vm.nameConflict.value)
     }
 
@@ -79,11 +77,9 @@ class ModeEditorViewModelTest {
 
     @Test
     fun nameConflict_isFalse_whenEditingModeWithUnchangedName() {
-        // loadMode sets draft.id = 1 and draft.name = "Work"
-        // same id is excluded from conflict check
         val existing = mode(1L, "Work")
         val vm = viewModel(modes = listOf(existing))
-        vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
+        vm.loadMode(1L)
         assertFalse(vm.nameConflict.value)
     }
 
@@ -92,8 +88,8 @@ class ModeEditorViewModelTest {
         val work = mode(1L, "Work")
         val home = mode(2L, "Home")
         val vm = viewModel(modes = listOf(work, home))
-        vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
-        vm.updateName("Home")    // trying to rename to existing "Home" (id=2)
+        vm.loadMode(1L)
+        vm.updateName("Home")
         assertTrue(vm.nameConflict.value)
     }
 
@@ -101,7 +97,7 @@ class ModeEditorViewModelTest {
     fun nameConflict_isFalse_whenEditingModeChangesNameToNewUniqueName() {
         val work = mode(1L, "Work")
         val vm = viewModel(modes = listOf(work))
-        vm.loadMode(1L)  // completes synchronously: flowOf emits eagerly under UnconfinedTestDispatcher
+        vm.loadMode(1L)
         vm.updateName("Office")
         assertFalse(vm.nameConflict.value)
     }
@@ -115,30 +111,10 @@ class ModeEditorViewModelTest {
             every { canWriteSecureSettings() } returns false
         }
         val vm = ModeEditorViewModel(repository, permissionChecker, maxMediaVolume = 15, maxNotificationVolume = 7)
-        vm.updateName("Work") // triggers conflict
+        vm.updateName("Work")
         vm.save()
         coVerify(exactly = 0) { repository.insertMode(any()) }
         coVerify(exactly = 0) { repository.updateMode(any()) }
-    }
-
-    @Test
-    fun newMode_defaultsToSecondaryType() {
-        val vm = viewModel()
-        assertEquals(ModeType.SECONDARY, vm.draft.value.type)
-    }
-
-    @Test
-    fun updateExclusive_true_setsPrimaryType() {
-        val vm = viewModel()
-        vm.updateExclusive(true)
-        assertEquals(ModeType.PRIMARY, vm.draft.value.type)
-    }
-
-    @Test
-    fun updateExclusive_false_setsSecondaryType() {
-        val vm = viewModel()
-        vm.updateExclusive(false)
-        assertEquals(ModeType.SECONDARY, vm.draft.value.type)
     }
 
     @Test
@@ -146,7 +122,6 @@ class ModeEditorViewModelTest {
         val existing = mode(1L, "Focus")
         val vm = viewModel(modes = listOf(existing))
         vm.loadMode(1L)
-        // With getModeByIdNow() returning the mode, draft is set before any coroutine runs
         assertEquals(existing, vm.draft.value)
         assertEquals(false, vm.isNew)
     }

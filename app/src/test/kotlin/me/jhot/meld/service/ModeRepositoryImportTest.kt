@@ -10,10 +10,10 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import me.jhot.meld.data.db.dao.ActiveModeDao
+import me.jhot.meld.data.db.dao.ExclusivityGroupDao
 import me.jhot.meld.data.db.dao.ModeDao
 import me.jhot.meld.data.model.Mode
 import me.jhot.meld.data.model.ModeSettings
-import me.jhot.meld.data.model.ModeType
 import org.junit.After
 import org.junit.Test
 
@@ -32,8 +32,11 @@ class ModeRepositoryImportTest {
         activeModeDao: ActiveModeDao = mockk(relaxed = true) {
             every { getActiveModeIds() } returns flowOf(emptySet())
         },
+        exclusivityGroupDao: ExclusivityGroupDao = mockk(relaxed = true) {
+            every { getAllCrossRefs() } returns flowOf(emptyList())
+        },
         settingsApplier: SettingsApplier = mockk(relaxed = true),
-    ) = ModeRepository(modeDao, activeModeDao, settingsApplier, testScope)
+    ) = ModeRepository(modeDao, activeModeDao, exclusivityGroupDao, settingsApplier, testScope)
 
     @Test
     fun importModes_callsReplaceByName_withConvertedModeEntities() = runTest {
@@ -43,8 +46,8 @@ class ModeRepositoryImportTest {
         val repo = repository(modeDao)
 
         val modes = listOf(
-            Mode(name = "Work", type = ModeType.PRIMARY, priority = 50, settings = ModeSettings(brightness = 200)),
-            Mode(name = "Default", type = ModeType.DEFAULT, priority = 0),
+            Mode(name = "Work", priority = 50, settings = ModeSettings(brightness = 200)),
+            Mode(name = "Default", isDefault = true, priority = 0),
         )
         repo.importModes(modes)
 
@@ -52,7 +55,7 @@ class ModeRepositoryImportTest {
             modeDao.replaceByName(match { list ->
                 list.size == 2 &&
                 list.any { it.name == "Work" && it.priority == 50 } &&
-                list.any { it.name == "Default" && it.type == ModeType.DEFAULT }
+                list.any { it.name == "Default" && it.isDefault }
             })
         }
     }
@@ -65,7 +68,7 @@ class ModeRepositoryImportTest {
         val settingsApplier = mockk<SettingsApplier>(relaxed = true)
         val repo = repository(modeDao, settingsApplier = settingsApplier)
 
-        repo.importModes(listOf(Mode(name = "Work", type = ModeType.PRIMARY, priority = 50)))
+        repo.importModes(listOf(Mode(name = "Work", priority = 50)))
 
         coVerify { settingsApplier.apply(any()) }
     }

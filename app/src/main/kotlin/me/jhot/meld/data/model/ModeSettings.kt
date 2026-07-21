@@ -3,7 +3,6 @@ package me.jhot.meld.data.model
 import androidx.room.TypeConverter
 import com.google.gson.Gson
 
-enum class ModeType { PRIMARY, SECONDARY, DEFAULT }
 enum class RingerMode { SILENT, VIBRATE, SOUND }
 enum class DndMode { OFF, PRIORITY_ONLY, ALARMS_ONLY, TOTAL_SILENCE }
 enum class ImmersiveMode { OFF, STATUS_BAR, NAV_BAR, BOTH }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -129,23 +130,38 @@ class GlobalSettingsViewModel(
 
     fun onImportConfirmed() {
         val result = _importResult.value
-        val exportedModes: List<ModeExport> = when (result) {
-            is ImportResult.ConflictsDetected -> result.modes
-            is ImportResult.Ready -> result.modes
+        val (modes, legacyPrimaryNames) = when (result) {
+            is ImportResult.ConflictsDetected -> result.modes to result.legacyPrimaryNames
+            is ImportResult.Ready -> result.modes to result.legacyPrimaryNames
             else -> return
         }
         viewModelScope.launch {
-            val modeEntities = exportedModes.map { export ->
-                Mode(
-                    name = export.name,
-                    type = export.type,
-                    priority = export.priority,
-                    settings = export.settings,
-                )
+            if (legacyPrimaryNames.isNotEmpty()) {
+                val existingModes = modeRepository.getAllModes().first()
+                val preselected = legacyPrimaryNames.associateWith { name ->
+                    existingModes.find { it.name == name }
+                        ?.let { modeRepository.getGroupsForMode(it.id).map { g -> g.name } }
+                        ?: emptyList()
+                }
+                _importResult.value = ImportResult.NeedsExclusivityGroupAssignment(modes, legacyPrimaryNames, preselected)
+            } else {
+                finishImport(modes, modes.associate { it.name to it.groupNames })
             }
-            modeRepository.importModes(modeEntities)
-            _importResult.value = null
         }
+    }
+
+    fun onExclusivityGroupsAssigned(assignments: Map<String, List<String>>) {
+        val result = _importResult.value as? ImportResult.NeedsExclusivityGroupAssignment ?: return
+        val groupNames = result.modes.associate { it.name to (assignments[it.name] ?: it.groupNames) }
+        viewModelScope.launch { finishImport(result.modes, groupNames) }
+    }
+
+    private suspend fun finishImport(modes: List<ModeExport>, groupNames: Map<String, List<String>>) {
+        val modeEntities = modes.map { export ->
+            Mode(name = export.name, isDefault = export.isDefault, priority = export.priority, settings = export.settings)
+        }
+        modeRepository.importModes(modeEntities, groupNames)
+        _importResult.value = null
     }
 
     fun onImportCancelled() {

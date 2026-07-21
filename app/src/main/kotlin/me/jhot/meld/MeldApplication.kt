@@ -31,7 +31,7 @@ class MeldApplication : Application() {
 
     val database: MeldDatabase by lazy {
         Room.databaseBuilder(this, MeldDatabase::class.java, "meld.db")
-            .addMigrations(MeldDatabase.MIGRATION_1_2)
+            .addMigrations(MeldDatabase.MIGRATION_1_2, MeldDatabase.MIGRATION_2_3)
             .build()
     }
 
@@ -55,13 +55,14 @@ class MeldApplication : Application() {
         ModeRepository(
             modeDao = database.modeDao(),
             activeModeDao = activeDatabase.activeModeDao(),
+            exclusivityGroupDao = database.exclusivityGroupDao(),
             settingsApplier = settingsApplier,
             scope = applicationScope,
         )
     }
 
     val importExportService: ImportExportService by lazy {
-        ImportExportService(database.modeDao(), this)
+        ImportExportService(database.modeDao(), database.exclusivityGroupDao(), this)
     }
 
     override fun onCreate() {

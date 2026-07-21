@@ -8,7 +8,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.jhot.meld.MeldApplication
 import me.jhot.meld.data.model.Mode
-import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.PermissionChecker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,12 +27,12 @@ class ModeListViewModel(
 
     val modesWithActiveState: StateFlow<List<Pair<Mode, Boolean>>> =
         allModesWithActiveState
-            .map { list -> list.filter { (mode, _) -> mode.type != ModeType.DEFAULT } }
+            .map { list -> list.filter { (mode, _) -> !mode.isDefault } }
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val defaultMode: StateFlow<Mode?> =
         allModesWithActiveState
-            .map { list -> list.firstOrNull { (mode, _) -> mode.type == ModeType.DEFAULT }?.first }
+            .map { list -> list.firstOrNull { (mode, _) -> mode.isDefault }?.first }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _anyPermissionMissing = MutableStateFlow(false)
