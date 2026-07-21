@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -89,6 +90,9 @@ class ModeRepository(
     fun getAllModes(): Flow<List<Mode>> = modeDao.getAll()
 
     fun getAllGroups(): Flow<List<ExclusivityGroup>> = exclusivityGroupDao.getAllGroups()
+
+    fun getGroupIdsPerMode(): Flow<Map<Long, List<Long>>> =
+        exclusivityGroupDao.getAllCrossRefs().map { refs -> refs.groupBy({ it.modeId }, { it.groupId }) }
 
     suspend fun getGroupsForMode(modeId: Long): List<ExclusivityGroup> =
         exclusivityGroupDao.getGroupsForModeOnce(modeId)
