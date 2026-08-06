@@ -1,6 +1,8 @@
 package me.jhot.meld.ui.modeList
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Switch
@@ -179,6 +182,8 @@ fun ModeListScreen(navController: NavController) {
                             onToggle = { viewModel.toggleActive(item.mode.id, item.isActive) },
                             onRequestDelete = { viewModel.requestDelete(item.mode) },
                             onClick = { navController.navigate("modeEditor?modeId=${item.mode.id}") },
+                            onRenameGroup = viewModel::renameGroup,
+                            onDeleteGroup = viewModel::deleteGroup,
                         )
                     }
                 }
@@ -230,7 +235,7 @@ private fun DefaultModeItem(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ModeListRow(
     mode: Mode,
@@ -239,7 +244,14 @@ private fun ModeListRow(
     onToggle: () -> Unit,
     onRequestDelete: () -> Unit,
     onClick: () -> Unit,
+    onRenameGroup: (Long, String) -> Unit,
+    onDeleteGroup: (Long) -> Unit,
 ) {
+    var menuForGroupId by remember { mutableStateOf<Long?>(null) }
+    var renameTargetId by remember { mutableStateOf<Long?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    var deleteTargetId by remember { mutableStateOf<Long?>(null) }
+
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.EndToStart) {
@@ -288,7 +300,34 @@ private fun ModeListRow(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             groups.forEach { group ->
-                                SuggestionChip(onClick = {}, label = { Text(group.name) })
+                                Box(
+                                    modifier = Modifier.combinedClickable(
+                                        onClick = {},
+                                        onLongClick = { menuForGroupId = group.id },
+                                    ),
+                                ) {
+                                    SuggestionChip(onClick = {}, label = { Text(group.name) })
+                                    DropdownMenu(
+                                        expanded = menuForGroupId == group.id,
+                                        onDismissRequest = { menuForGroupId = null },
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Rename") },
+                                            onClick = {
+                                                renameTargetId = group.id
+                                                renameText = group.name
+                                                menuForGroupId = null
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Delete") },
+                                            onClick = {
+                                                deleteTargetId = group.id
+                                                menuForGroupId = null
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -311,5 +350,39 @@ private fun ModeListRow(
                 }
             }
         }
+    }
+
+    renameTargetId?.let { groupId ->
+        AlertDialog(
+            onDismissRequest = { renameTargetId = null },
+            title = { Text("Rename group") },
+            text = {
+                OutlinedTextField(value = renameText, onValueChange = { renameText = it }, singleLine = true)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (renameText.isNotBlank()) onRenameGroup(groupId, renameText)
+                    renameTargetId = null
+                }) { Text("Rename") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameTargetId = null }) { Text("Cancel") }
+            },
+        )
+    }
+
+    deleteTargetId?.let { groupId ->
+        val name = groups.find { it.id == groupId }?.name ?: ""
+        AlertDialog(
+            onDismissRequest = { deleteTargetId = null },
+            title = { Text("Delete \"$name\"?") },
+            text = { Text("This removes the group from every mode that uses it.") },
+            confirmButton = {
+                TextButton(onClick = { onDeleteGroup(groupId); deleteTargetId = null }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTargetId = null }) { Text("Cancel") }
+            },
+        )
     }
 }

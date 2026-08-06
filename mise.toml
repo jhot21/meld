@@ -1,7 +1,7 @@
 [env]
-JAVA_HOME = "/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ANDROID_HOME = "~/Library/Android/sdk"
 TASK_X_REMOTE_TASKFILES = "1"
 
 [tools]
 task = "latest"
+java = "21.0.2"

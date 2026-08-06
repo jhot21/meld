@@ -74,6 +74,14 @@ class ModeListViewModel(
 
     fun dismissBanner() { _bannerDismissed.value = true }
 
+    fun renameGroup(groupId: Long, name: String) {
+        viewModelScope.launch { repository.renameGroup(groupId, name) }
+    }
+
+    fun deleteGroup(groupId: Long) {
+        viewModelScope.launch { repository.deleteGroup(groupId) }
+    }
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
