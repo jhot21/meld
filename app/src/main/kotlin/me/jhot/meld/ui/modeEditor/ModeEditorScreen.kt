@@ -197,8 +197,6 @@ fun ModeEditorScreen(modeId: Long?, navController: NavController) {
                         selectedGroupIds = draftGroupIds,
                         onToggle = viewModel::toggleGroup,
                         onCreate = viewModel::createAndJoinGroup,
-                        onRename = viewModel::renameGroup,
-                        onDelete = viewModel::deleteGroup,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

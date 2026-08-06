@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.jhot.meld.MeldApplication
+import me.jhot.meld.data.model.ExclusivityGroup
 import me.jhot.meld.data.model.Mode
 import me.jhot.meld.service.ImportExportService
 import me.jhot.meld.service.ImportResult
@@ -70,6 +71,17 @@ class GlobalSettingsViewModel(
         modeRepository.getAllGroups()
             .map { groups -> groups.map { it.name } }
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val allGroups: StateFlow<List<ExclusivityGroup>> =
+        modeRepository.getAllGroups().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun renameGroup(groupId: Long, name: String) {
+        viewModelScope.launch { modeRepository.renameGroup(groupId, name) }
+    }
+
+    fun deleteGroup(groupId: Long) {
+        viewModelScope.launch { modeRepository.deleteGroup(groupId) }
+    }
 
     private val shizukuPermissionListener =
         rikka.shizuku.Shizuku.OnRequestPermissionResultListener { _, result ->

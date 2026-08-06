@@ -83,17 +83,6 @@ class ModeEditorViewModel(
         }
     }
 
-    fun renameGroup(groupId: Long, name: String) {
-        viewModelScope.launch { repository.renameGroup(groupId, name) }
-    }
-
-    fun deleteGroup(groupId: Long) {
-        viewModelScope.launch {
-            repository.deleteGroup(groupId)
-            _draftGroupIds.update { it - groupId }
-        }
-    }
-
     fun loadMode(modeId: Long) {
         _saveComplete.value = false
         val cached = repository.getModeByIdNow(modeId)
