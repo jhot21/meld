@@ -9,7 +9,7 @@ Android mode manager for automation tools. Define named collections of device se
   <img src="docs/screenshots/4.png" width="23%">
 </p>
 
-[Download from Releases](https://codeberg.org/jhot/meld/releases)
+[Download from Releases](https://github.com/jhot21/meld/releases)
 
 Requires Android 12 (API 31) or later.
 
@@ -43,11 +43,11 @@ Meld solves this by owning the state. It knows which modes are active at all tim
 
 ### From Releases
 
-Download the latest APK from [Releases](https://codeberg.org/jhot/meld/releases) and install it.
+Download the latest APK from [Releases](https://github.com/jhot21/meld/releases) and install it.
 
 ### Via Obtainium
 
-Add `https://codeberg.org/jhot/meld` as a source in [Obtainium](https://github.com/ImranR98/Obtainium) to receive automatic updates.
+Add `https://github.com/jhot21/meld` as a source in [Obtainium](https://github.com/ImranR98/Obtainium) to receive automatic updates.
 
 ## Permissions Setup
 
@@ -182,7 +182,7 @@ adb shell am broadcast -a meld.intent.SET_MODE --es mode "Focus" --ez active fal
 ## Building from Source
 
 ```sh
-git clone https://codeberg.org/jhot/meld.git
+git clone https://github.com/jhot21/meld.git
 cd meld
 ./gradlew assembleDebug
 ```
