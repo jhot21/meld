@@ -29,7 +29,7 @@ Some modes shouldn't take effect at the same time — for example, you only ever
 - Within a group, only the highest-priority active member applies its settings; other active members of that group are excluded until the winner is deactivated.
 - A mode in multiple groups is included as long as it wins at least one of them.
 
-Create, rename, and delete groups inline from the **Exclusivity Groups** section of the Mode Editor — there's no separate management screen. Toggle the chip for a mode's membership; long-press a chip to rename or delete that group everywhere. The mode list shows each mode's group chips for reference.
+Tap a group's chip in the Mode Editor to toggle a mode's membership, or type a name and tap **+** to create a new group and join it. Rename or delete groups from the **Exclusivity Groups** section of Settings. The mode list shows each mode's group chips for reference.
 
 If you're importing an export from an older version of Meld that used the old "Exclusive"/"Shared" toggle, you'll be prompted to assign each former-Exclusive mode to a group during import (former-Shared modes import with no groups automatically, no prompt needed). Upgrading the app in place (rather than importing an export) migrates this automatically: all former-Exclusive modes are placed into one auto-created "Exclusive" group, preserving behavior.
 
