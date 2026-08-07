@@ -66,10 +66,10 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint + unit tests
-        run: task check
+        run: task --yes check
 
       - name: Build debug APK
-        run: task build
+        run: task --yes build
 
       - name: Decode keystore
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > meld-release-key.jks
