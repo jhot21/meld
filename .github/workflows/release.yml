@@ -72,14 +72,14 @@ jobs:
         run: task --yes build
 
       - name: Decode keystore
-        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > meld-release-key.jks
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/meld-release-key.jks"
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
       - name: Build signed release APK
         run: ./gradlew assembleRelease
         env:
-          KEYSTORE_PATH: meld-release-key.jks
+          KEYSTORE_PATH: ${{ github.workspace }}/meld-release-key.jks
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
