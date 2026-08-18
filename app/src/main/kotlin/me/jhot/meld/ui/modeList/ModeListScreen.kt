@@ -2,17 +2,17 @@ package me.jhot.meld.ui.modeList
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -32,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -57,8 +57,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import me.jhot.meld.data.model.ExclusivityGroup
 import me.jhot.meld.data.model.Mode
-import me.jhot.meld.data.model.ModeType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,13 +171,14 @@ fun ModeListScreen(navController: NavController) {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(modes, key = { (mode, _) -> mode.id }) { (mode, isActive) ->
-                        ModeListItem(
-                            mode = mode,
-                            isActive = isActive,
-                            onToggle = { viewModel.toggleActive(mode.id, isActive) },
-                            onRequestDelete = { viewModel.requestDelete(mode) },
-                            onClick = { navController.navigate("modeEditor?modeId=${mode.id}") },
+                    items(modes, key = { item -> item.mode.id }) { item ->
+                        ModeListRow(
+                            mode = item.mode,
+                            isActive = item.isActive,
+                            groups = item.groups,
+                            onToggle = { viewModel.toggleActive(item.mode.id, item.isActive) },
+                            onRequestDelete = { viewModel.requestDelete(item.mode) },
+                            onClick = { navController.navigate("modeEditor?modeId=${item.mode.id}") },
                         )
                     }
                 }
@@ -229,11 +230,12 @@ private fun DefaultModeItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun ModeListItem(
+private fun ModeListRow(
     mode: Mode,
     isActive: Boolean,
+    groups: List<ExclusivityGroup>,
     onToggle: () -> Unit,
     onRequestDelete: () -> Unit,
     onClick: () -> Unit,
@@ -281,20 +283,20 @@ private fun ModeListItem(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(mode.name, style = MaterialTheme.typography.titleMedium)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (mode.type == ModeType.PRIMARY) {
-                            SuggestionChip(
-                                onClick = {},
-                                label = { Text("Exclusive") },
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                    if (groups.isNotEmpty()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            groups.forEach { group ->
+                                SuggestionChip(onClick = {}, label = { Text(group.name) })
+                            }
                         }
-                        Text(
-                            "Priority ${mode.priority}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
+                    Text(
+                        "Priority ${mode.priority}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Switch(

@@ -7,33 +7,40 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.jhot.meld.MeldApplication
+import me.jhot.meld.data.model.ExclusivityGroup
 import me.jhot.meld.data.model.Mode
-import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.service.ModeRepository
 import me.jhot.meld.service.PermissionChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class ModeListItem(val mode: Mode, val isActive: Boolean, val groups: List<ExclusivityGroup>)
 
 class ModeListViewModel(
     private val repository: ModeRepository,
     private val permissionChecker: PermissionChecker,
 ) : ViewModel() {
 
-    private val allModesWithActiveState = repository.modesWithActiveState
-
-    val modesWithActiveState: StateFlow<List<Pair<Mode, Boolean>>> =
-        allModesWithActiveState
-            .map { list -> list.filter { (mode, _) -> mode.type != ModeType.DEFAULT } }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val modesWithActiveState: StateFlow<List<ModeListItem>> =
+        combine(repository.modesWithActiveState, repository.getAllGroups(), repository.getGroupIdsPerMode()) {
+            list, allGroups, groupIdsPerMode ->
+            val groupsById = allGroups.associateBy { it.id }
+            list.filter { (mode, _) -> !mode.isDefault }
+                .map { (mode, isActive) ->
+                    val groups = (groupIdsPerMode[mode.id] ?: emptyList()).mapNotNull { groupsById[it] }
+                    ModeListItem(mode, isActive, groups)
+                }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val defaultMode: StateFlow<Mode?> =
-        allModesWithActiveState
-            .map { list -> list.firstOrNull { (mode, _) -> mode.type == ModeType.DEFAULT }?.first }
+        repository.modesWithActiveState
+            .map { list -> list.firstOrNull { (mode, _) -> mode.isDefault }?.first }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _anyPermissionMissing = MutableStateFlow(false)
@@ -57,7 +64,6 @@ class ModeListViewModel(
     }
 
     fun requestDelete(mode: Mode) { _pendingDeleteMode.value = mode }
-
     fun cancelDelete() { _pendingDeleteMode.value = null }
 
     fun confirmDelete() {

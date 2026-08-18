@@ -10,6 +10,4 @@ import com.joaomgcd.taskerpluginlibrary.output.TaskerOutputVariable
 class ModeEventOutput @JvmOverloads constructor(
     @field:TaskerInputField("meld_mode_name", labelResIdName = "tasker_label_mode_name")
     @get:TaskerOutputVariable("meld_mode_name", labelResIdName = "tasker_label_mode_name") val modeName: String = "",
-    @field:TaskerInputField("meld_mode_type", labelResIdName = "tasker_label_mode_type")
-    @get:TaskerOutputVariable("meld_mode_type", labelResIdName = "tasker_label_mode_type") val modeType: String = ""
 )

@@ -8,10 +8,10 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import me.jhot.meld.data.db.dao.ExclusivityGroupDao
 import me.jhot.meld.data.db.dao.ModeDao
 import me.jhot.meld.data.model.Mode
 import me.jhot.meld.data.model.ModeSettings
-import me.jhot.meld.data.model.ModeType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -27,7 +27,11 @@ class ImportExportServiceTest {
         val modeDao = mockk<ModeDao> {
             every { getAll() } returns flowOf(modes)
         }
-        return ImportExportService(modeDao, mockk(relaxed = true))
+        val exclusivityGroupDao = mockk<ExclusivityGroupDao>(relaxed = true) {
+            every { getAllCrossRefs() } returns flowOf(emptyList())
+            every { getAllGroups() } returns flowOf(emptyList())
+        }
+        return ImportExportService(modeDao, exclusivityGroupDao, mockk(relaxed = true))
     }
 
     private fun serviceWithJson(existingModes: List<Mode> = emptyList(), json: String): ImportExportService {
@@ -41,16 +45,18 @@ class ImportExportServiceTest {
         val modeDao = mockk<ModeDao> {
             every { getAll() } returns flowOf(existingModes)
         }
-        return ImportExportService(modeDao, context)
+        val exclusivityGroupDao = mockk<ExclusivityGroupDao>(relaxed = true) {
+            every { getAllCrossRefs() } returns flowOf(emptyList())
+            every { getAllGroups() } returns flowOf(emptyList())
+        }
+        return ImportExportService(modeDao, exclusivityGroupDao, context)
     }
-
-    // --- export() ---
 
     @Test
     fun export_includesAllModes() = runTest {
         val modes = listOf(
-            Mode(id = 1, name = "Default", type = ModeType.DEFAULT, priority = 0),
-            Mode(id = 2, name = "Work", type = ModeType.PRIMARY, priority = 50),
+            Mode(id = 1, name = "Default", isDefault = true, priority = 0),
+            Mode(id = 2, name = "Work", priority = 50),
         )
         val json = serviceWithModes(modes).export()
         val parsed = gson.fromJson(json, Map::class.java)
@@ -61,7 +67,7 @@ class ImportExportServiceTest {
     @Test
     fun export_omitsIdCreatedAtUpdatedAt() = runTest {
         val modes = listOf(
-            Mode(id = 99, name = "Work", type = ModeType.PRIMARY, priority = 50, createdAt = 1000L, updatedAt = 2000L)
+            Mode(id = 99, name = "Work", priority = 50, createdAt = 1000L, updatedAt = 2000L)
         )
         val json = serviceWithModes(modes).export()
         val parsed = gson.fromJson(json, Map::class.java)
@@ -85,8 +91,8 @@ class ImportExportServiceTest {
     @Test
     fun export_onlyEmitsNonNullSettings() = runTest {
         val modes = listOf(
-            Mode(name = "Work", type = ModeType.PRIMARY, priority = 50,
-                settings = ModeSettings(brightness = 200))  // all other fields null
+            Mode(name = "Work", priority = 50,
+                settings = ModeSettings(brightness = 200))
         )
         val json = serviceWithModes(modes).export()
         val parsed = gson.fromJson(json, Map::class.java)
@@ -95,8 +101,6 @@ class ImportExportServiceTest {
         assertTrue("brightness should be present", settings.containsKey("brightness"))
         assertFalse("volumeMedia should be absent (null)", settings.containsKey("volumeMedia"))
     }
-
-    // --- parseImport() ---
 
     @Test
     fun parseImport_returnsReady_whenNoConflicts() = runTest {
@@ -108,7 +112,7 @@ class ImportExportServiceTest {
 
     @Test
     fun parseImport_returnsConflictsDetected_whenNameCollides() = runTest {
-        val existing = listOf(Mode(id = 1, name = "Work", type = ModeType.PRIMARY, priority = 50))
+        val existing = listOf(Mode(id = 1, name = "Work", priority = 50))
         val json = """{"exportVersion":1,"exportedAt":0,"modes":[{"name":"Work","type":"PRIMARY","priority":70,"settings":{}}]}"""
         val result = serviceWithJson(existingModes = existing, json = json).parseImport(fakeUri)
         assertTrue(result is ImportResult.ConflictsDetected)
@@ -117,7 +121,7 @@ class ImportExportServiceTest {
 
     @Test
     fun parseImport_conflictsResult_containsAllImportedModes() = runTest {
-        val existing = listOf(Mode(id = 1, name = "Work", type = ModeType.PRIMARY, priority = 50))
+        val existing = listOf(Mode(id = 1, name = "Work", priority = 50))
         val json = """{"exportVersion":1,"exportedAt":0,"modes":[
             {"name":"Work","type":"PRIMARY","priority":70,"settings":{}},
             {"name":"Home","type":"SECONDARY","priority":30,"settings":{}}
@@ -135,7 +139,6 @@ class ImportExportServiceTest {
 
     @Test
     fun parseImport_returnsMalformedJson_whenModesFieldAbsent() = runTest {
-        // Gson leaves non-null Kotlin fields null when absent — must not crash.
         val result = serviceWithJson(json = """{"exportVersion":1,"exportedAt":0}""").parseImport(fakeUri)
         assertEquals(ImportResult.MalformedJson, result)
     }
@@ -147,11 +150,9 @@ class ImportExportServiceTest {
         assertEquals(ImportResult.UnsupportedVersion, result)
     }
 
-    // --- exportSingleMode() ---
-
     @Test
-    fun exportSingleMode_producesJsonWithExactlyOneMode() {
-        val mode = Mode(id = 1, name = "Work", type = ModeType.PRIMARY, priority = 50)
+    fun exportSingleMode_producesJsonWithExactlyOneMode() = runTest {
+        val mode = Mode(id = 1, name = "Work", priority = 50)
         val json = serviceWithModes().exportSingleMode(mode)
         val parsed = gson.fromJson(json, Map::class.java)
         val modesList = parsed["modes"] as List<*>
@@ -159,8 +160,8 @@ class ImportExportServiceTest {
     }
 
     @Test
-    fun exportSingleMode_includesCorrectExportVersion() {
-        val mode = Mode(name = "Work", type = ModeType.PRIMARY, priority = 50)
+    fun exportSingleMode_includesCorrectExportVersion() = runTest {
+        val mode = Mode(name = "Work", priority = 50)
         val json = serviceWithModes().exportSingleMode(mode)
         val parsed = gson.fromJson(json, Map::class.java)
         assertEquals(
@@ -170,8 +171,8 @@ class ImportExportServiceTest {
     }
 
     @Test
-    fun exportSingleMode_includesExportedAt() {
-        val mode = Mode(name = "Work", type = ModeType.PRIMARY, priority = 50)
+    fun exportSingleMode_includesExportedAt() = runTest {
+        val mode = Mode(name = "Work", priority = 50)
         val json = serviceWithModes().exportSingleMode(mode)
         val parsed = gson.fromJson(json, Map::class.java)
         assertTrue("exportedAt must be present", parsed.containsKey("exportedAt"))
@@ -179,8 +180,8 @@ class ImportExportServiceTest {
     }
 
     @Test
-    fun exportSingleMode_omitsIdCreatedAtUpdatedAt() {
-        val mode = Mode(id = 99, name = "Work", type = ModeType.PRIMARY, priority = 50, createdAt = 1000L, updatedAt = 2000L)
+    fun exportSingleMode_omitsIdCreatedAtUpdatedAt() = runTest {
+        val mode = Mode(id = 99, name = "Work", priority = 50, createdAt = 1000L, updatedAt = 2000L)
         val json = serviceWithModes().exportSingleMode(mode)
         val parsed = gson.fromJson(json, Map::class.java)
         val modesList = parsed["modes"] as List<Map<*, *>>
@@ -189,8 +190,6 @@ class ImportExportServiceTest {
         assertFalse("createdAt must not be exported", modeMap.containsKey("createdAt"))
         assertFalse("updatedAt must not be exported", modeMap.containsKey("updatedAt"))
     }
-
-    // --- singleModeExportFileName() ---
 
     @Test
     fun singleModeExportFileName_sanitizesSpacesToUnderscores() {

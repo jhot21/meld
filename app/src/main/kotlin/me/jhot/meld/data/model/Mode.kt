@@ -11,7 +11,7 @@ data class Mode(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
-    val type: ModeType,
+    val isDefault: Boolean = false,
     val priority: Int,
     val settings: ModeSettings = ModeSettings(),
     val createdAt: Long = System.currentTimeMillis(),

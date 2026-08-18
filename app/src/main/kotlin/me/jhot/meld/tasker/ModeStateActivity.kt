@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.jhot.meld.MeldApplication
-import me.jhot.meld.data.model.ModeType
 import me.jhot.meld.ui.tasker.ModeStateScreen
 import me.jhot.meld.ui.theme.MeldTheme
 
@@ -69,7 +68,7 @@ class ModeStateActivity : ComponentActivity(), TaskerPluginConfig<ModeStateInput
             val app = applicationContext as MeldApplication
             val modeNames = withContext(Dispatchers.IO) {
                 app.database.modeDao().getAll().first()
-                    .filter { it.type != ModeType.DEFAULT }
+                    .filter { !it.isDefault }
                     .map { it.name }
             }
             modes.addAll(modeNames)

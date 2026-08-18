@@ -2,7 +2,6 @@ package me.jhot.meld.data.db.dao
 
 import androidx.room.*
 import me.jhot.meld.data.model.Mode
-import me.jhot.meld.data.model.ModeType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -27,7 +26,7 @@ interface ModeDao {
 
     @Transaction
     suspend fun deleteSafe(mode: Mode) {
-        check(mode.type != ModeType.DEFAULT) { "Cannot delete the DEFAULT mode" }
+        check(!mode.isDefault) { "Cannot delete the DEFAULT mode" }
         delete(mode)
     }
 

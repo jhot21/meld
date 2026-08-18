@@ -9,7 +9,7 @@ Android mode manager for automation tools. Define named collections of device se
   <img src="docs/screenshots/4.png" width="23%">
 </p>
 
-[Download from Releases](https://codeberg.org/jhot/meld/releases)
+[Download from Releases](https://github.com/jhot21/meld/releases)
 
 Requires Android 12 (API 31) or later.
 
@@ -21,6 +21,18 @@ Meld lets you define **modes** — named collections of device settings like vol
 
 For example, you might have a **Focus** mode (DND on, low brightness) and a **Night** mode (dark mode, extra dim). Activating both at once works correctly — Meld resolves any setting conflicts by priority and applies the right combination. Deactivating one mode snaps the remaining mode's settings back into effect automatically.
 
+## Exclusivity Groups
+
+Some modes shouldn't take effect at the same time — for example, you only ever want one of **Home**, **Work**, or **Away** active at once, even if your automations briefly overlap them. Exclusivity groups handle this.
+
+- A mode can belong to zero or more exclusivity groups. A mode in no groups always merges its settings in when active.
+- Within a group, only the highest-priority active member applies its settings; other active members of that group are excluded until the winner is deactivated.
+- A mode in multiple groups is included as long as it wins at least one of them.
+
+Tap a group's chip in the Mode Editor to toggle a mode's membership, or type a name and tap **+** to create a new group and join it. Rename or delete groups from the **Exclusivity Groups** section of Settings. The mode list shows each mode's group chips for reference.
+
+If you're importing an export from an older version of Meld that used the old "Exclusive"/"Shared" toggle, you'll be prompted to assign each former-Exclusive mode to a group during import (former-Shared modes import with no groups automatically, no prompt needed). Upgrading the app in place (rather than importing an export) migrates this automatically: all former-Exclusive modes are placed into one auto-created "Exclusive" group, preserving behavior.
+
 ## Why Meld Instead of Just Tasker
 
 Tasker profiles activate settings but don't track state. If a Sleep profile sets volume to 0 and a Focus profile also sets volume to 0, deactivating Sleep would normally need a separate restore action — but how does Tasker know Focus is still active and still wants volume at 0?
@@ -31,11 +43,11 @@ Meld solves this by owning the state. It knows which modes are active at all tim
 
 ### From Releases
 
-Download the latest APK from [Releases](https://codeberg.org/jhot/meld/releases) and install it.
+Download the latest APK from [Releases](https://github.com/jhot21/meld/releases) and install it.
 
 ### Via Obtainium
 
-Add `https://codeberg.org/jhot/meld` as a source in [Obtainium](https://github.com/ImranR98/Obtainium) to receive automatic updates.
+Add `https://github.com/jhot21/meld` as a source in [Obtainium](https://github.com/ImranR98/Obtainium) to receive automatic updates.
 
 ## Permissions Setup
 
@@ -170,7 +182,7 @@ adb shell am broadcast -a meld.intent.SET_MODE --es mode "Focus" --ez active fal
 ## Building from Source
 
 ```sh
-git clone https://codeberg.org/jhot/meld.git
+git clone https://github.com/jhot21/meld.git
 cd meld
 ./gradlew assembleDebug
 ```
