@@ -59,6 +59,14 @@
             </intent-filter>
         </receiver>
 
+        <!-- Read-only mode names for apps the user has granted READ_MODES. Deliberately not
+             directBootAware: mode data lives in credential-protected storage. -->
+        <provider
+            android:name=".service.ModeStateProvider"
+            android:authorities="${applicationId}.state"
+            android:exported="true"
+            android:readPermission="me.jhot.meld.permission.READ_MODES" />
+
         <!-- ShizukuService extends IShizukuService.Stub (AIDL binder), not android.app.Service.
              It is launched via Shizuku.bindUserService, not the standard service lifecycle. -->
         <service
