@@ -8,8 +8,17 @@ object ModeResolver {
         allModes: List<Mode>,
         activeModeIds: Set<Long>,
         modeGroupIds: Map<Long, List<Long>>,
-    ): ModeSettings {
-        val defaultSettings = allModes.find { it.isDefault }?.settings ?: ModeSettings()
+    ): ModeSettings = settingsFor(allModes, effectiveModes(allModes, activeModeIds, modeGroupIds))
+
+    /**
+     * The modes whose settings are actually applied: active, non-default, and (per exclusivity
+     * group) the highest-priority member. Ordered lowest to highest precedence.
+     */
+    fun effectiveModes(
+        allModes: List<Mode>,
+        activeModeIds: Set<Long>,
+        modeGroupIds: Map<Long, List<Long>>,
+    ): List<Mode> {
         val activeModes = allModes.filter { !it.isDefault && it.id in activeModeIds }
 
         fun groupsOf(mode: Mode) = modeGroupIds[mode.id] ?: emptyList()
@@ -25,12 +34,15 @@ object ModeResolver {
 
         val workingSet = (groupWinners + ungrouped).distinctBy { it.id }
 
-        val sorted = workingSet.sortedWith(
+        return workingSet.sortedWith(
             compareBy<Mode> { it.priority }
                 .thenBy { if (groupsOf(it).isEmpty()) 1 else 0 }
                 .thenBy { it.id }
         )
+    }
 
-        return sorted.fold(defaultSettings) { acc, mode -> acc.mergeWith(mode.settings) }
+    fun settingsFor(allModes: List<Mode>, effective: List<Mode>): ModeSettings {
+        val defaultSettings = allModes.find { it.isDefault }?.settings ?: ModeSettings()
+        return effective.fold(defaultSettings) { acc, mode -> acc.mergeWith(mode.settings) }
     }
 }
