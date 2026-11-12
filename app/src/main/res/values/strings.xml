@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Meld</string>
+    <string name="permission_read_modes_label">Read Meld modes</string>
+    <string name="permission_read_modes_description">read your list of Meld modes and which ones are active</string>
     <string name="select_mode">Select Mode</string>
     <string name="save">Save</string>
     <string name="tasker_action_add_to_context">Meld - Add to Context</string>

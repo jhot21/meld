@@ -13,6 +13,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Guards the read-only mode query provider and the MODES_CHANGED broadcast. Dangerous so the
+         owner approves each client app with a runtime prompt; signature is impossible because
+         client apps are signed with different keys. -->
+    <permission
+        android:name="me.jhot.meld.permission.READ_MODES"
+        android:description="@string/permission_read_modes_description"
+        android:label="@string/permission_read_modes_label"
+        android:protectionLevel="dangerous" />
+
     <application
         android:name=".MeldApplication"
         android:allowBackup="true"

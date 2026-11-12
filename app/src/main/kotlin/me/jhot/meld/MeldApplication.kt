@@ -16,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import me.jhot.meld.data.db.ActiveDatabase
 import me.jhot.meld.data.db.MeldDatabase
 import me.jhot.meld.receiver.NtfyReceiver
+import me.jhot.meld.service.BroadcastModesChangedNotifier
 import me.jhot.meld.service.ImportExportService
 import me.jhot.meld.service.MeldForegroundService
 import me.jhot.meld.service.ModeRepository
@@ -58,6 +59,10 @@ class MeldApplication : Application() {
             exclusivityGroupDao = database.exclusivityGroupDao(),
             settingsApplier = settingsApplier,
             scope = applicationScope,
+            notifier = BroadcastModesChangedNotifier(
+                isSharingEnabled = { true },
+                send = { intent, permission -> sendBroadcast(intent, permission) },
+            ),
         )
     }
 
