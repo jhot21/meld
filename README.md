@@ -202,9 +202,10 @@ any that lost their [exclusivity group](#exclusivity-groups) to a higher-priorit
 | `content://me.jhot.meld.state/modes` | every non-default mode name, alphabetical |
 | `content://me.jhot.meld.state/active` | names of modes in effect, alphabetical; no rows when none |
 
-Names are case-sensitive and are the same identifier `meld.intent.SET_MODE` uses. If Meld cannot read
-its data (for example before the device is first unlocked) the query throws instead of returning
-no rows, so keep your last known state when it fails. The first query can start Meld's process, which
+Names are case-sensitive and are the same identifier `meld.intent.SET_MODE` uses. If Meld cannot be
+queried (for example before the device is first unlocked, when Android does not start the provider,
+or when Meld is not installed) you get a `null` cursor or an exception, never an empty result. Treat
+both as "unknown" and keep your last known state; do not write `cursor ?: emptyList()`. The first query can start Meld's process, which
 shows Meld's background-service notification.
 
 **Change broadcast.** Whenever the set of modes in effect changes (from any source: the app, intents,
@@ -219,7 +220,7 @@ Only receivers registered at runtime in apps that hold the permission get it. Re
 process-level code (for example `Application`, not an Activity) with `RECEIVER_EXPORTED`; on Android 14
 and later nothing is delivered otherwise. Treat the broadcast as a nudge: re-query the provider when it
 arrives, and read the provider when your process starts, since a stopped process misses broadcasts.
-Meld also sends it once after its process starts. Adding, renaming or deleting an inactive mode does
+The first state change after Meld's process starts always sends, even if the set did not change. Adding, renaming or deleting an inactive mode does
 not send one (read `modes` when you show a picker), and neither does the reset of active modes at
 device boot, which happens before any client could be listening.
 
