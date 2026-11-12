@@ -179,6 +179,50 @@ adb shell am broadcast -a meld.intent.SET_MODE --es mode "Focus" --ez active tru
 adb shell am broadcast -a meld.intent.SET_MODE --es mode "Focus" --ez active false
 ```
 
+## Reading Meld's state from another app
+
+Other apps can read which modes exist and which are in effect, and be told when that changes. Access
+is read-only and needs the `me.jhot.meld.permission.READ_MODES` permission, which you approve with a
+one-time prompt.
+
+**Permission.** A client declares `<uses-permission android:name="me.jhot.meld.permission.READ_MODES" />`
+and requests it at runtime (`requestPermissions`). Android shows an Allow / Don't allow prompt. The
+permission only exists once Meld is installed, so a client installed before Meld may need to be
+reinstalled or relaunched before it can request it. Without the grant, queries throw
+`SecurityException` and the broadcast is not delivered.
+
+**What "active" means.** The modes whose settings are actually being applied: activated modes, minus
+any that lost their [exclusivity group](#exclusivity-groups) to a higher-priority mode. The Default
+(baseline) mode is never listed.
+
+**Query.** Authority `me.jhot.meld.state` (your `applicationId` + `.state`), one column, `name`:
+
+| URI | Rows |
+|-----|------|
+| `content://me.jhot.meld.state/modes` | every non-default mode name, alphabetical |
+| `content://me.jhot.meld.state/active` | names of modes in effect, alphabetical; no rows when none |
+
+Names are case-sensitive and are the same identifier `meld.intent.SET_MODE` uses. If Meld cannot read
+its data (for example before the device is first unlocked) the query throws instead of returning
+no rows, so keep your last known state when it fails. The first query can start Meld's process, which
+shows Meld's background-service notification.
+
+**Change broadcast.** Whenever the set of modes in effect changes (from any source: the app, intents,
+ntfy, Tasker, priority or group edits, deleting a mode, import), Meld sends:
+
+| | |
+|---|---|
+| Action | `meld.intent.MODES_CHANGED` |
+| Extra `modes` | `String[]` of active mode names, alphabetical, empty array when none |
+
+Only receivers registered at runtime in apps that hold the permission get it. Register from
+process-level code (for example `Application`, not an Activity) with `RECEIVER_EXPORTED`; on Android 14
+and later nothing is delivered otherwise. Treat the broadcast as a nudge: re-query the provider when it
+arrives, and read the provider when your process starts, since a stopped process misses broadcasts.
+Meld also sends it once after its process starts. Adding, renaming or deleting an inactive mode does
+not send one (read `modes` when you show a picker), and neither does the reset of active modes at
+device boot, which happens before any client could be listening.
+
 ## Building from Source
 
 ```sh
