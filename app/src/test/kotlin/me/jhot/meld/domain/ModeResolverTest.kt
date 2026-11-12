@@ -119,4 +119,57 @@ class ModeResolverTest {
         val result = ModeResolver.resolve(listOf(low, high), setOf(1L, 2L), groups)
         assertEquals(true, result.keyboardVibration)
     }
+
+    @Test
+    fun effectiveModes_excludesDefault() {
+        val base = mode(1, 0, isDefault = true)
+        val focus = mode(2, 10)
+        val result = ModeResolver.effectiveModes(listOf(base, focus), setOf(1L, 2L), emptyMap())
+        assertEquals(listOf(focus), result)
+    }
+
+    @Test
+    fun effectiveModes_ungroupedActiveIncluded() {
+        val a = mode(1, 10)
+        val b = mode(2, 20)
+        val result = ModeResolver.effectiveModes(listOf(a, b), setOf(1L, 2L), emptyMap())
+        assertEquals(listOf(a, b), result)
+    }
+
+    @Test
+    fun effectiveModes_groupLoserExcluded() {
+        val home = mode(1, 10)
+        val work = mode(2, 20)
+        val groups = mapOf(1L to listOf(100L), 2L to listOf(100L))
+        val result = ModeResolver.effectiveModes(listOf(home, work), setOf(1L, 2L), groups)
+        assertEquals(listOf(work), result)
+    }
+
+    @Test
+    fun effectiveModes_inactiveExcluded() {
+        val a = mode(1, 10)
+        val b = mode(2, 20)
+        val result = ModeResolver.effectiveModes(listOf(a, b), setOf(2L), emptyMap())
+        assertEquals(listOf(b), result)
+    }
+
+    @Test
+    fun effectiveModes_emptyWhenNoneActive() {
+        val result = ModeResolver.effectiveModes(listOf(mode(1, 10)), emptySet(), emptyMap())
+        assertEquals(emptyList<Mode>(), result)
+    }
+
+    @Test
+    fun settingsFor_matchesResolve() {
+        val base = mode(1, 0, isDefault = true, settings = ModeSettings(volumeMedia = 3))
+        val home = mode(2, 10, settings = ModeSettings(volumeMedia = 5, darkMode = true))
+        val work = mode(3, 20, settings = ModeSettings(volumeMedia = 8))
+        val all = listOf(base, home, work)
+        val groups = mapOf(2L to listOf(100L), 3L to listOf(100L))
+        val active = setOf(2L, 3L)
+        assertEquals(
+            ModeResolver.resolve(all, active, groups),
+            ModeResolver.settingsFor(all, ModeResolver.effectiveModes(all, active, groups)),
+        )
+    }
 }

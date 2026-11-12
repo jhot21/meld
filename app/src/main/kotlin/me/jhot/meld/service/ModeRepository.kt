@@ -24,9 +24,13 @@ class ModeRepository(
     private val exclusivityGroupDao: ExclusivityGroupDao,
     private val settingsApplier: SettingsApplier,
     scope: CoroutineScope,
+    private val notifier: ModesChangedNotifier = ModesChangedNotifier.None,
 ) {
 
     private val applyLock = Mutex()
+
+    /** Effective mode names last handed to [notifier]; null until the first resolve in this process. */
+    private var lastSent: List<String>? = null
 
     val modesWithActiveState: StateFlow<List<Pair<Mode, Boolean>>> =
         combine(modeDao.getAll(), activeModeDao.getActiveModeIds()) { modes, activeIds ->
@@ -57,16 +61,36 @@ class ModeRepository(
         resolveAndApply()
     }
 
-    suspend fun resolveAndApply() = applyLock.withLock {
+    private class Snapshot(val allModes: List<Mode>, val effective: List<Mode>)
+
+    private suspend fun loadSnapshot(): Snapshot {
         val (allModes, activeIds, crossRefs) = combine(
             modeDao.getAll(),
             activeModeDao.getActiveModeIds(),
             exclusivityGroupDao.getAllCrossRefs(),
         ) { modes, ids, refs -> Triple(modes, ids, refs) }.first()
         val modeGroupIds = crossRefs.groupBy({ it.modeId }, { it.groupId })
-        val resolved = ModeResolver.resolve(allModes, activeIds, modeGroupIds)
-        settingsApplier.apply(resolved)
+        return Snapshot(allModes, ModeResolver.effectiveModes(allModes, activeIds, modeGroupIds))
     }
+
+    suspend fun resolveAndApply() = applyLock.withLock {
+        val snapshot = loadSnapshot()
+        settingsApplier.apply(ModeResolver.settingsFor(snapshot.allModes, snapshot.effective))
+        // Notify only after settings applied, inside the lock, so broadcasts stay ordered with
+        // the state they describe. A failed apply leaves lastSent alone so the next resolve retries.
+        val names = snapshot.effective.map { it.name }.sorted()
+        if (names != lastSent) {
+            notifier.onChanged(names)
+            lastSent = names
+        }
+    }
+
+    /** Names of modes whose settings are in effect, alphabetical, Default excluded. */
+    suspend fun effectiveModeNames(): List<String> = loadSnapshot().effective.map { it.name }.sorted()
+
+    /** Names of all non-default modes, alphabetical. */
+    suspend fun allModeNames(): List<String> =
+        modeDao.getAll().first().filter { !it.isDefault }.map { it.name }.sorted()
 
     suspend fun insertMode(mode: Mode): Long = modeDao.insert(mode)
 
@@ -102,7 +126,11 @@ class ModeRepository(
 
     suspend fun renameGroup(groupId: Long, name: String) = exclusivityGroupDao.renameGroup(groupId, name)
 
-    suspend fun deleteGroup(groupId: Long) = exclusivityGroupDao.deleteGroup(groupId)
+    suspend fun deleteGroup(groupId: Long) {
+        exclusivityGroupDao.deleteGroup(groupId)
+        // Dropping a group can promote group losers into the effective set.
+        resolveAndApply()
+    }
 
     suspend fun importModes(modes: List<Mode>, modeGroupNames: Map<String, List<String>> = emptyMap()) {
         modeDao.replaceByName(modes)
